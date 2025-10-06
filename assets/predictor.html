@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>Uniform Check</title>
+
+  <style>
+    :root{ --safeTop: env(safe-area-inset-top, 0px); }
+    body{ margin:0; background:#0b0f2d; color:#e5e7eb; font-family:sans-serif; }
+    .wrap{ padding: calc(var(--safeTop) + 10px) 12px 12px; }
+    .card{ background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+           border-radius:14px; padding:12px; margin-bottom:10px; }
+    .row{ display:flex; gap:8px; align-items:center; }
+    .btn{ padding:12px 14px; background:linear-gradient(90deg,#6EE7F9,#8B5CF6,#EC4899);
+          color:#0b0f1f; border:none; border-radius:10px; font-weight:800; }
+    .note{ color:#a5b4fc; font-size:12px; }
+    img{ width:100%; max-height:320px; object-fit:contain; border-radius:10px; background:#0e1621; }
+    .ok{ color:#34d399; font-weight:700; }
+    .bad{ color:#f87171; font-weight:700; }
+    .k{ color:#93c5fd; }
+  </style>
+
+  <!-- TFJS + Teachable Machine -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.13.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.6/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <!-- แถวนี้จะถูกซ่อนเมื่อรันใน WebView -->
+      <div class="row" id="localRow">
+        <input id="file" type="file" accept="image/*" />
+        <button class="btn" onclick="run()">ตรวจภาพ</button>
+      </div>
+      <div id="note" class="note">อัปโหลดภาพส่วนลำตัวที่เห็นเข็มขัด/เนคไทชัด ๆ</div>
+    </div>
+
+    <div class="card"><img id="preview" alt="preview" /></div>
+
+    <div class="card">
+      <div><span class="k">เข็มขัด</span>: <span id="beltText">-</span></div>
+      <div><span class="k">เนคไท</span>: <span id="tieText">-</span></div>
+      <hr style="opacity:.15;margin:10px 0" />
+      <div>ผลรวม: <span id="finalText">-</span></div>
+    </div>
+  </div>
+
+  <script>
+    /** ในแอป CheckScreen.js จะ inject ตัวแปรเหล่านี้เป็น path ที่โหลดได้จริง
+     *  window.TM_BELT_MODEL, window.TM_BELT_META, window.TM_TIE_MODEL, window.TM_TIE_META
+     */
+
+    // ซ่อน input + ปุ่ม เมื่อฝังในแอป (ใช้ปุ่มจาก RN แทน)
+    if (window.ReactNativeWebView) {
+      const row = document.getElementById('localRow');
+      if (row) row.style.display = 'none';
+      const note = document.getElementById('note');
+      if (note) note.textContent = 'ใช้ปุ่ม “เลือกรูปจากเครื่อง” ด้านล่างของแอป';
+    }
+
+    let modelBelt, modelTie;
+
+    async function loadModels(){
+      // ตรวจว่ามี URI ที่ inject มาหรือยัง
+      if (!window.TM_BELT_MODEL || !window.TM_BELT_META ||
+          !window.TM_TIE_MODEL  || !window.TM_TIE_META) {
+        const msg = { type:'error', message:'Model URIs not injected' };
+        window.ReactNativeWebView?.postMessage(JSON.stringify(msg));
+        throw new Error(msg.message);
+      }
+      if (!modelBelt) modelBelt = await tmImage.load(window.TM_BELT_MODEL, window.TM_BELT_META);
+      if (!modelTie)  modelTie  = await tmImage.load(window.TM_TIE_MODEL,  window.TM_TIE_META);
+    }
+
+    async function predict(imgEl){
+      await loadModels();
+
+      const b = (await modelBelt.predict(imgEl, false)).sort((x,y)=>y.probability-x.probability)[0];
+      const t = (await modelTie.predict(imgEl,  false)).sort((x,y)=>y.probability-x.probability)[0];
+
+      const passBelt = b.className.includes("มี") && b.probability >= 0.8;
+      const passTie  = t.className.includes("มี") && t.probability >= 0.8;
+      const passAll  = passBelt && passTie;
+
+      document.getElementById('beltText').innerHTML =
+        `${b.className} (${(b.probability*100).toFixed(1)}%) ` + (passBelt ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>');
+      document.getElementById('tieText').innerHTML  =
+        `${t.className} (${(t.probability*100).toFixed(1)}%) ` + (passTie  ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>');
+      document.getElementById('finalText').innerHTML = passAll ? '<span class="ok">ผ่านเกณฑ์</span>' : '<span class="bad">ยังไม่ครบองค์ประกอบ</span>';
+
+      // ส่งผลกลับไปให้ React Native
+      window.ReactNativeWebView?.postMessage(JSON.stringify({
+        type:'result',
+        belt:{ label:b.className, prob:b.probability, pass:passBelt },
+        tie: { label:t.className, prob:t.probability, pass:passTie },
+        passAll
+      }));
+    }
+
+    // ปุ่มทดสอบบนเว็บปกติ (ไม่ใช้ในแอป)
+    async function run(){
+      if (window.ReactNativeWebView) return; // กันแจ้งเตือนในแอป
+      const input = document.getElementById('file');
+      if (!input.files || !input.files[0]) return alert('กรุณาเลือกภาพก่อน');
+      const img = document.getElementById('preview');
+      const fr  = new FileReader();
+      fr.onload = async () => { img.src = fr.result; await new Promise(r=>img.onload=r); await predict(img); };
+      fr.readAsDataURL(input.files[0]);
+    }
+
+    // รับรูปจาก React Native แล้วทำนายทันที (รองรับ Android/iOS)
+    function handleRNMessage(ev){
+      const raw = typeof ev === 'string' ? ev : (ev?.data ?? '');
+      try{
+        const msg = JSON.parse(raw || '{}');
+        if (msg.type === 'image' && msg.dataUrl){
+          const img = document.getElementById('preview');
+          img.src = msg.dataUrl;
+          img.onload = () => predict(img);
+        }
+      }catch(_){}
+    }
+    document.addEventListener('message', handleRNMessage); // Android
+    window.addEventListener('message',  handleRNMessage);  // iOS
+  </script>
+</body>
+</html>
