@@ -1,19 +1,20 @@
+// screens/LoginScreen.js
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    Easing,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  Easing,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { supabase } from "../config/SupabaseClient";
+import { setAppUserId, supabase } from "../config/SupabaseClient";
 
 const { width, height } = Dimensions.get("window");
 
@@ -45,6 +46,27 @@ export default function LoginScreen({ navigation }) {
     }));
   }, []);
 
+  // ---- ช่วยดึง user จากผล RPC (รองรับหลายรูปแบบ) ----
+  function extractUser(data) {
+    // array -> ใช้ตัวแรก
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return null;
+
+    // object -> อาจเป็น { id, username } หรือ { user_id, username }
+    if (typeof row === "object") {
+      const id = row.id || row.user_id || null;
+      const username = row.username || row.email || null;
+      return id ? { id, username } : null;
+    }
+
+    // string -> อาจเป็น uuid เดี่ยว
+    if (typeof row === "string") {
+      return { id: row, username: email.trim() };
+    }
+
+    return null;
+  }
+
   async function onLogin() {
     if (!email || !password) {
       alert("กรุณากรอกอีเมลและรหัสผ่าน");
@@ -52,13 +74,31 @@ export default function LoginScreen({ navigation }) {
     }
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+
+      // เรียก RPC ตรวจรหัสผ่านจากตาราง app_users
+      const { data, error } = await supabase.rpc("app_login", {
+        p_username: email.trim(),
+        p_password: password,
       });
-      if (error) return alert(error.message);
-      // ✅ ไปแท็บหลักหลังล็อกอิน
+
+      if (error) {
+        // ข้อความจาก Postgres/pgcrypto/นโยบาย RLS เป็นต้น
+        return alert(error.message || "ล็อกอินไม่สำเร็จ");
+      }
+
+      const user = extractUser(data);
+      if (!user?.id) {
+        return alert("ไม่พบผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+      }
+
+      // ✅ ตั้ง header x-user-id ให้ client หลัก เพื่อให้ RLS policy ใช้ได้
+      setAppUserId(user.id);
+
+      // ไปหน้า Main
       navigation.replace("Main");
+    } catch (e) {
+      console.error("login error:", e);
+      alert(e?.message || "เกิดข้อผิดพลาดขณะล็อกอิน");
     } finally {
       setLoading(false);
     }
@@ -72,7 +112,6 @@ export default function LoginScreen({ navigation }) {
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-
       <LinearGradient
         colors={["rgba(0,255,255,0.25)", "rgba(138,43,226,0.22)", "transparent"]}
         start={{ x: 0.2, y: 0.1 }}
@@ -107,9 +146,12 @@ export default function LoginScreen({ navigation }) {
         );
       })}
 
-      {/* การ์ดกระจก */}
       <View style={styles.centerWrap}>
-        <BlurView intensity={Platform.OS === "ios" ? 35 : 20} tint="dark" style={styles.card}>
+        <BlurView
+          intensity={Platform.OS === "ios" ? 35 : 20}
+          tint="dark"
+          style={styles.card}
+        >
           <Text style={styles.brandTop}>⟡</Text>
           <Text style={styles.title}>UTCC • </Text>
           <Text style={styles.subtitle}>uniform-check</Text>
@@ -128,7 +170,6 @@ export default function LoginScreen({ navigation }) {
             secureTextEntry
           />
 
-          {/* ปุ่มนีออน */}
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={onLogin}
@@ -171,7 +212,7 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-/** อินพุตสไตล์นีออน + เส้นเรืองแสงใต้ช่อง */
+/** อินพุตสไตล์นีออน */
 function FuturisticInput(props) {
   const [focused, setFocused] = useState(false);
   const glow = useRef(new Animated.Value(0)).current;
@@ -189,7 +230,6 @@ function FuturisticInput(props) {
     inputRange: [0, 1],
     outputRange: ["rgba(255,255,255,0.12)", "rgba(110,231,249,0.9)"],
   });
-
   const shadowOpacity = glow.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 0.6],
@@ -206,21 +246,13 @@ function FuturisticInput(props) {
           {...props}
         />
       </Animated.View>
-      <Animated.View
-        style={[
-          styles.inputGlowLine,
-          {
-            opacity: glow,
-          },
-        ]}
-      />
+      <Animated.View style={[styles.inputGlowLine, { opacity: glow }]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#060816" },
-
   aurora: {
     position: "absolute",
     width: width * 1.2,
@@ -231,16 +263,13 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     transform: [{ rotate: "25deg" }],
   },
-
   star: { position: "absolute", backgroundColor: "#fff" },
-
   centerWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 22,
   },
-
   card: {
     width: "100%",
     borderRadius: 22,
@@ -250,7 +279,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(10,14,28,0.45)",
     overflow: "hidden",
   },
-
   brandTop: {
     position: "absolute",
     top: 10,
@@ -258,7 +286,6 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.35)",
     fontSize: 16,
   },
-
   title: {
     color: "#E5E7EB",
     fontSize: 22,
@@ -270,7 +297,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     marginTop: 4,
   },
-
   inputWrap: {
     borderWidth: 1,
     borderRadius: 14,
@@ -291,7 +317,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: "rgba(110,231,249,0.8)",
   },
-
   btnShadow: {
     borderRadius: 14,
     overflow: "hidden",
@@ -302,20 +327,10 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 8,
   },
-  button: {
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  btnText: {
-    color: "#0b0f1f",
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-
+  button: { paddingVertical: 14, borderRadius: 14, alignItems: "center" },
+  btnText: { color: "#0b0f1f", fontWeight: "800", letterSpacing: 1 },
   row: { flexDirection: "row", justifyContent: "center", gap: 10, marginTop: 14 },
   link: { color: "#A5B4FC", fontWeight: "600" },
   dot: { color: "rgba(255,255,255,0.4)" },
-
   underGlow: { width: "70%", height: 2, marginTop: 12, borderRadius: 2 },
 });

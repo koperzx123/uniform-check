@@ -1,7 +1,19 @@
+// screens/RegisterScreen.js
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Dimensions, Easing, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  Easing,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { supabase } from "../config/SupabaseClient";
 
 const { width, height } = Dimensions.get("window");
@@ -12,10 +24,17 @@ export default function RegisterScreen({ navigation }) {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ดาวลอยเบา ๆ
+  // ---- แอนิเมชันดาว ----
   const starAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.loop(Animated.timing(starAnim, { toValue: 1, duration: 12000, easing: Easing.linear, useNativeDriver: true })).start();
+    Animated.loop(
+      Animated.timing(starAnim, {
+        toValue: 1,
+        duration: 12000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
   }, []);
   const stars = useMemo(() => {
     const count = 36;
@@ -27,17 +46,56 @@ export default function RegisterScreen({ navigation }) {
     }));
   }, []);
 
+  // ---- สมัคร ----
   async function onRegister() {
+    if (loading) return;
     if (!email || !password || !confirm) return Alert.alert("กรุณากรอกให้ครบ");
     if (!isValidEmail(email)) return Alert.alert("อีเมลไม่ถูกต้อง");
     if (password !== confirm) return Alert.alert("รหัสผ่านไม่ตรงกัน");
 
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) return Alert.alert("สมัครไม่สำเร็จ", error.message);
-      Alert.alert("สมัครสำเร็จ", "โปรดยืนยันอีเมลก่อนเข้าสู่ระบบ (ถ้าระบบกำหนด)");
-      navigation.replace("Login");
+
+      const { data, error } = await supabase.rpc("app_register", {
+        p_username: email.trim(),
+        p_password: password,
+      });
+
+      if (error) {
+        console.error("❌ RPC Error:", error);
+        // 23505 = duplicate key (อีเมลซ้ำ)
+        if (String(error.code) === "23505") {
+          return Alert.alert(
+            "สมัครไม่สำเร็จ",
+            "อีเมลนี้ถูกใช้แล้ว ลองล็อกอินหรือตั้งรหัสผ่านใหม่",
+            [{ text: "ไปล็อกอิน", onPress: () => navigation.replace("Login") }]
+          );
+        }
+        return Alert.alert("สมัครไม่สำเร็จ", error.message || "ไม่สามารถบันทึกข้อมูลผู้ใช้ได้");
+      }
+
+      // รองรับทั้ง 3 เคส:
+      // 1) คืน array [{ user_id, username }]
+      // 2) คืน object { user_id, username }
+      // 3) (เก่า) คืน uuid เดี่ยวเป็น string
+      const row = Array.isArray(data) ? data[0] : data;
+      const userId =
+        (row && (row.user_id || row.id)) ||
+        (typeof data === "string" ? data : null);
+      const displayName = (row && row.username) || email.trim();
+
+      if (!userId) {
+        return Alert.alert("สมัครไม่สำเร็จ", "ระบบไม่สามารถคืนค่าได้");
+      }
+
+      console.log("✅ Registered user id:", userId);
+
+      Alert.alert("สมัครสำเร็จ", `สร้างบัญชี ${displayName} สำเร็จแล้ว!`, [
+        { text: "ไปล็อกอิน", onPress: () => navigation.replace("Login") },
+      ]);
+    } catch (err) {
+      console.error("❌ Unexpected error:", err);
+      Alert.alert("เกิดข้อผิดพลาด", err?.message || "ไม่สามารถสมัครได้");
     } finally {
       setLoading(false);
     }
@@ -46,35 +104,77 @@ export default function RegisterScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* พื้นหลัง */}
-      <LinearGradient colors={["#060816", "#0b0f2d", "#1a1f4d"]} start={{ x: 0.1, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient
+        colors={["#060816", "#0b0f2d", "#1a1f4d"]}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
 
       {/* ออโรร่า */}
-      <LinearGradient colors={["rgba(0,255,255,0.25)", "rgba(138,43,226,0.22)", "transparent"]} start={{ x: 0.2, y: 0.1 }} end={{ x: 1, y: 1 }} style={styles.aurora} />
+      <LinearGradient
+        colors={["rgba(0,255,255,0.25)", "rgba(138,43,226,0.22)", "transparent"]}
+        start={{ x: 0.2, y: 0.1 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.aurora}
+      />
 
       {/* ดาว */}
       {stars.map((s) => {
-        const translateY = starAnim.interpolate({ inputRange: [0, 1], outputRange: [s.y, s.y - 40] });
-        const opacity = starAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.4, 1, 0.4] });
+        const translateY = starAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [s.y, s.y - 40],
+        });
+        const opacity = starAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0.4, 1, 0.4],
+        });
         return (
           <Animated.View
             key={s.key}
-            style={[styles.star, { left: s.x, transform: [{ translateY }], opacity, width: s.size, height: s.size, borderRadius: s.size / 2 }]}
+            style={[
+              styles.star,
+              {
+                left: s.x,
+                transform: [{ translateY }],
+                opacity,
+                width: s.size,
+                height: s.size,
+                borderRadius: s.size / 2,
+              },
+            ]}
           />
         );
       })}
 
-      {/* การ์ดกระจก */}
+      {/* การ์ด */}
       <View style={styles.centerWrap}>
         <BlurView intensity={Platform.OS === "ios" ? 35 : 20} tint="dark" style={styles.card}>
           <Text style={styles.title}>Create Access</Text>
           <Text style={styles.subtitle}>ลงทะเบียนเพื่อใช้งาน UTCC Uniform Check</Text>
 
-          <FuturisticInput placeholder="Email address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <FuturisticInput
+            placeholder="Email address"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
           <FuturisticInput placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
           <FuturisticInput placeholder="Confirm password" value={confirm} onChangeText={setConfirm} secureTextEntry />
 
-          <TouchableOpacity disabled={loading} activeOpacity={0.9} onPress={onRegister} style={[styles.btnShadow, loading ? { opacity: 0.6 } : null]}>
-            <LinearGradient colors={["#6EE7F9", "#8B5CF6", "#EC4899"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.button}>
+          <TouchableOpacity
+            disabled={loading}
+            activeOpacity={0.9}
+            onPress={onRegister}
+            style={[styles.btnShadow, loading ? { opacity: 0.6 } : null]}
+          >
+            <LinearGradient
+              colors={["#6EE7F9", "#8B5CF6", "#EC4899"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.button}
+            >
               <Text style={styles.btnText}>{loading ? "CREATING..." : "CREATE ACCOUNT"}</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -84,7 +184,12 @@ export default function RegisterScreen({ navigation }) {
           </TouchableOpacity>
         </BlurView>
 
-        <LinearGradient colors={["transparent", "rgba(110,231,249,0.35)", "transparent"]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.underGlow} />
+        <LinearGradient
+          colors={["transparent", "rgba(110,231,249,0.35)", "transparent"]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.underGlow}
+        />
       </View>
     </View>
   );
@@ -95,16 +200,33 @@ function FuturisticInput(props) {
   const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(glow, { toValue: focused ? 1 : 0, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
+    Animated.timing(glow, {
+      toValue: focused ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
   }, [focused]);
 
-  const borderColor = glow.interpolate({ inputRange: [0, 1], outputRange: ["rgba(255,255,255,0.12)", "rgba(110,231,249,0.9)"] });
-  const shadowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.6] });
+  const borderColor = glow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,255,255,0.12)", "rgba(110,231,249,0.9)"],
+  });
+  const shadowOpacity = glow.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.6],
+  });
 
   return (
     <View style={{ width: "100%", marginBottom: 14 }}>
       <Animated.View style={[styles.inputWrap, { borderColor, shadowOpacity }]}>
-        <TextInput placeholderTextColor="rgba(255,255,255,0.5)" style={styles.input} {...props} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
+        <TextInput
+          placeholderTextColor="rgba(255,255,255,0.5)"
+          style={styles.input}
+          {...props}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
       </Animated.View>
       <Animated.View style={[styles.inputGlowLine, { opacity: glow }]} />
     </View>
