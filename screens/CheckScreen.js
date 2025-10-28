@@ -576,8 +576,8 @@ function buildPredictorHtml(bases) {
           const b = await topPred(await loadModel("beltMBase"), img);
 
           const passTie  = passIfHas(t.className,
-            ["tie","necktie","มีเนคไท","ใส่เนคไท"],
-            ["no_tie","notie","ไม่มีเนคไท","ไม่ใส่เนคไท","ไม่มี"]
+            ["tie","necktie","มีเนคไท","เนคไทชาย"],
+            ["no_tie","notie","ไม่มีเนคไท","ไม่มีเนคไทชาย","ไม่มี"]
           );
           const passBelt = passIfHas(b.className,
             ["belt","withbelt","มีเข็มขัด","ใส่เข็มขัด"],
@@ -607,8 +607,8 @@ function buildPredictorHtml(bases) {
           const bt = await topPred(await loadModel("btnFBase"),  img);
 
           const passBeltF = passIfHas(bf.className,
-            ["belt","withbelt","มีเข็มขัด","ใส่เข็มขัด"],
-            ["no_belt","nobelt","ไม่มีเข็มขัด","ไม่ใส่เข็มขัด","ไม่มี"]
+            ["belt","withbelt","เข็มขัดหญิง","ใส่เข็มขัด"],
+            ["no_belt","nobelt","ไม่มีเข็มขัดหญิง","ไม่ใส่เข็มขัด","ไม่มี"]
           );
           const passPin   = passIfHas(p.className,
             ["pin","brooch","มีเข็มกลัด","ติดเข็มกลัด","กลัด"],
