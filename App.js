@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { BlurView } from 'expo-blur';
 import CheckScreen from './screens/CheckScreen';
 import DressCodeScreen from './screens/DressCodeScreen';
 import ForgotScreen from './screens/ForgotScreen';
@@ -12,6 +13,7 @@ import HomeScreen from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import RegisterScreen from './screens/RegisterScreen';
+
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -24,13 +26,21 @@ function MainTabs() {
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: {
-          backgroundColor: '#0E1621',
-          borderTopColor: '#1f2937',
+          position: 'absolute',
+          backgroundColor: 'rgba(255,255,255,0.12)',  // โปร่งใส
+          borderTopWidth: 0,
+          elevation: 0,
           height: 70,
-          paddingBottom: 8,
         },
-        tabBarActiveTintColor: '#60a5fa',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarBackground: () => (
+          <BlurView
+            tint="dark"
+            intensity={40}
+            style={{ flex: 1 }}
+          />
+        ),
+        tabBarActiveTintColor: '#00fff2ff',
+        tabBarInactiveTintColor: '#0026ffff',
         tabBarIcon: ({ color, size }) => {
           if (route.name === 'หน้าหลัก') return <Ionicons name="home" size={size} color={color} />;
           if (route.name === 'เช็คชุดนักศึกษา') return <MaterialCommunityIcons name="tshirt-crew" size={size} color={color} />;
@@ -47,7 +57,6 @@ function MainTabs() {
     </Tab.Navigator>
   );
 }
-
 // 🔹 สแต็กหลัก
 export default function App() {
   return (

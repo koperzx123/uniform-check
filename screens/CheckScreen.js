@@ -1,4 +1,5 @@
 // screens/CheckScreen.js
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
@@ -11,12 +12,17 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from "react-native-webview";
 import { supabase } from "../config/SupabaseClient";
 
+
 export default function CheckScreen() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+  const bottomGap = Math.max(insets.bottom, 8) + tabBarHeight;
   const [html, setHtml] = useState(null);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -57,7 +63,7 @@ export default function CheckScreen() {
     })();
   }, []);
 
-  // สร้าง HTML ของ WebView
+  // สร้าง HTML ของ WebView (ธีมฟ้าใส)
   useEffect(() => {
     setHtml(
       buildPredictorHtml({
@@ -139,8 +145,18 @@ export default function CheckScreen() {
     }
   }
 
-  const showPass = (item) => (!item ? "-" : item.pass ? "ผ่าน" : "ยังไม่ผ่าน");
+  // เดิมใช้สำหรับสี/สไตล์
   const styleFor = (item) => (!item ? styles.val : item.pass ? styles.ok : styles.bad);
+
+  // ---- ข้อความที่ผู้ใช้ขอ: outer => "ชุดนักศึกษา/ชุดไปรเวท", อื่น ๆ => "มี/ไม่มี"
+  function textFor(key, item) {
+    if (!item) return "-";
+    if (key === "outer") {
+      return item.pass ? "ชุดนักศึกษา" : "ชุดไปรเวท";
+    }
+    // tie / belt / pin / ear / btn
+    return item.pass ? "มี" : "ไม่มี";
+  }
 
   // ===== แปลงผลที่ "ไม่ผ่าน" ให้เป็นข้อความสั้น ๆ =====
   const ONLY_ONE_FAILURE = false;
@@ -222,7 +238,7 @@ export default function CheckScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: bottomGap }]}>
       {html ? (
         <WebView
           ref={webRef}
@@ -234,7 +250,8 @@ export default function CheckScreen() {
           allowUniversalAccessFromFileURLs
           mixedContentMode="always"
           setSupportMultipleWindows={false}
-          style={{ flex: 1, backgroundColor: "#0E1621" }}
+          androidLayerType="software"
+          style={{ flex: 1, backgroundColor: "#E0F7FF" }}
           onLoadEnd={() => {
             webReadyRef.current = true;
             if (pendingToSendRef.current) {
@@ -261,22 +278,22 @@ export default function CheckScreen() {
         />
       ) : (
         <View style={styles.center}>
-          <Text style={{ color: "#9fb3c8" }}>กำลังโหลดโมเดล…</Text>
+          <Text style={{ color: "#0F172A" }}>กำลังโหลดโมเดล…</Text>
         </View>
       )}
 
       {/* ปุ่มลอยสองปุ่ม: ถ่ายภาพ & เลือกรูป */}
-      <View style={styles.pickRow}>
+      <View style={[styles.pickRow, { bottom: 16 + tabBarHeight + insets.bottom }]}>
         <TouchableOpacity onPress={openCamera} style={[styles.pickBtn, { marginRight: 8 }]} disabled={busy} activeOpacity={0.9}>
-          {busy ? <ActivityIndicator color="#E5E7EB" /> : <Text style={styles.pickText}>ถ่ายภาพ</Text>}
+          {busy ? <ActivityIndicator color="#0F172A" /> : <Text style={styles.pickText}>ถ่ายภาพ</Text>}
         </TouchableOpacity>
         <TouchableOpacity onPress={openLibrary} style={styles.pickBtn} disabled={busy} activeOpacity={0.9}>
-          {busy ? <ActivityIndicator color="#E5E7EB" /> : <Text style={styles.pickText}>เลือกรูป</Text>}
+          {busy ? <ActivityIndicator color="#0F172A" /> : <Text style={styles.pickText}>เลือกรูป</Text>}
         </TouchableOpacity>
       </View>
 
       {/* ===== แสดงผลสรุป ===== */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 12 + insets.bottom }]}>
         <Text style={styles.line}>
           เพศ: <Text style={styles.val}>{result?.genderTH || "-"}</Text>
         </Text>
@@ -284,13 +301,22 @@ export default function CheckScreen() {
         {result?.gender === "male" && (
           <>
             <Text style={styles.line}>
-              ตรวจชุดนอก: <Text style={styleFor(result?.detail?.outer)}>{showPass(result?.detail?.outer)}</Text>
+              ตรวจสอบชุดนักศึกษา:{" "}
+              <Text style={styleFor(result?.detail?.outer)}>
+                {textFor("outer", result?.detail?.outer)}
+              </Text>
             </Text>
             <Text style={styles.line}>
-              เนคไท: <Text style={styleFor(result?.detail?.tie)}>{showPass(result?.detail?.tie)}</Text>
+              เนคไท:{" "}
+              <Text style={styleFor(result?.detail?.tie)}>
+                {textFor("tie", result?.detail?.tie)}
+              </Text>
             </Text>
             <Text style={styles.line}>
-              เข็มขัด: <Text style={styleFor(result?.detail?.belt)}>{showPass(result?.detail?.belt)}</Text>
+              เข็มขัด:{" "}
+              <Text style={styleFor(result?.detail?.belt)}>
+                {textFor("belt", result?.detail?.belt)}
+              </Text>
             </Text>
           </>
         )}
@@ -298,19 +324,34 @@ export default function CheckScreen() {
         {result?.gender === "female" && (
           <>
             <Text style={styles.line}>
-              ตรวจชุดนอก: <Text style={styleFor(result?.detail?.outer)}>{showPass(result?.detail?.outer)}</Text>
+              ตรวจสอบชุดนักศึกษา:{" "}
+              <Text style={styleFor(result?.detail?.outer)}>
+                {textFor("outer", result?.detail?.outer)}
+              </Text>
             </Text>
             <Text style={styles.line}>
-              เข็มขัด: <Text style={styleFor(result?.detail?.belt)}>{showPass(result?.detail?.belt)}</Text>
+              เข็มขัด:{" "}
+              <Text style={styleFor(result?.detail?.belt)}>
+                {textFor("belt", result?.detail?.belt)}
+              </Text>
             </Text>
             <Text style={styles.line}>
-              เข็มกลัด: <Text style={styleFor(result?.detail?.pin)}>{showPass(result?.detail?.pin)}</Text>
+              เข็มกลัด:{" "}
+              <Text style={styleFor(result?.detail?.pin)}>
+                {textFor("pin", result?.detail?.pin)}
+              </Text>
             </Text>
             <Text style={styles.line}>
-              ตุ้งติ้ง: <Text style={styleFor(result?.detail?.ear)}>{showPass(result?.detail?.ear)}</Text>
+              ตุ้งติ้ง:{" "}
+              <Text style={styleFor(result?.detail?.ear)}>
+                {textFor("ear", result?.detail?.ear)}
+              </Text>
             </Text>
             <Text style={styles.line}>
-              กระดุม: <Text style={styleFor(result?.detail?.btn)}>{showPass(result?.detail?.btn)}</Text>
+              กระดุม:{" "}
+              <Text style={styleFor(result?.detail?.btn)}>
+                {textFor("btn", result?.detail?.btn)}
+              </Text>
             </Text>
           </>
         )}
@@ -340,7 +381,7 @@ export default function CheckScreen() {
               value={studentId}
               onChangeText={setStudentId}
               placeholder="เช่น 6601xxxxxxx"
-              placeholderTextColor="#9fb3c8"
+              placeholderTextColor="rgba(15,23,42,0.45)"
               style={styles.modalInput}
               keyboardType="default"
               autoCapitalize="none"
@@ -349,13 +390,13 @@ export default function CheckScreen() {
             <View style={{ height: 10 }} />
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity
-                style={[styles.modalBtn, { flex: 1, backgroundColor: "#1f2a44" }]}
+                style={[styles.modalBtn, { flex: 1, backgroundColor: "#E2F3FF", borderColor: "rgba(56,189,248,0.35)" }]}
                 onPress={() => setShowSave(false)}
               >
-                <Text style={styles.pickText}>ยกเลิก</Text>
+                <Text style={[styles.modalBtnText, { color: "#0F172A" }]}>ยกเลิก</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, { flex: 1 }]} onPress={saveFailure} disabled={saving}>
-                {saving ? <ActivityIndicator color="#E5E7EB" /> : <Text style={styles.pickText}>บันทึก</Text>}
+                {saving ? <ActivityIndicator color="#0F172A" /> : <Text style={styles.modalBtnText}>บันทึก</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -365,83 +406,113 @@ export default function CheckScreen() {
   );
 }
 
-/* ---------- styles ---------- */
+/* ---------- styles (ธีมฟ้าใสให้แมตช์หน้า Login) ---------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0E1621" },
+  container: { flex: 1, backgroundColor: "#E0F7FF" }, // ฟ้าอ่อนสว่าง
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
+
   footer: {
     padding: 12,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(0,0,0,0.15)",
+    borderTopColor: "rgba(147,197,253,0.55)",
+    backgroundColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#7DD3FC",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: -2 },
+    shadowRadius: 6,
+    paddingBottom: 12,
   },
-  line: { color: "#e5e7eb", fontSize: 14, marginBottom: 2 },
-  val: { color: "#e5e7eb", fontWeight: "700" },
-  ok: { color: "#34D399", fontWeight: "700" },
-  bad: { color: "#F87171", fontWeight: "700" },
+  line: { color: "#0F172A", fontSize: 14, marginBottom: 2 },
+  val: { color: "#0EA5E9", fontWeight: "700" },
+  ok: { color: "#16A34A", fontWeight: "800" },
+  bad: { color: "#DC2626", fontWeight: "800" },
 
-  // ปุ่มลอยสองปุ่ม
+  // ปุ่มลอย
   pickRow: {
     position: "absolute",
     right: 16,
     bottom: 24,
     flexDirection: "row",
-    zIndex: 2,
-    elevation: 6,
+    zIndex: 20, 
+    elevation: 8,
   },
   pickBtn: {
-    backgroundColor: "#1f2a44",
+    backgroundColor: "#BAE6FD",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "#7DD3FC",
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    shadowColor: "#67E8F9",
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
   },
-  pickText: { color: "#E5E7EB", fontWeight: "700" },
+  pickText: { color: "#0F172A", fontWeight: "800", fontSize: 15 },
 
   saveBtn: {
     marginTop: 10,
     alignSelf: "flex-start",
-    backgroundColor: "#334155",
+    backgroundColor: "#7DD3FC",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(56,189,248,0.35)",
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    shadowColor: "#67E8F9",
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 5,
   },
-  saveText: { color: "#E5E7EB", fontWeight: "700" },
+  saveText: { color: "#0F172A", fontWeight: "800" },
+
+  // Modal
   modalWrap: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "rgba(0,0,0,0.25)",
     alignItems: "center",
     justifyContent: "center",
   },
   modalCard: {
     width: "86%",
-    backgroundColor: "#0E1621",
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: 18,
+    padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(147,197,253,0.6)",
+    shadowColor: "#7DD3FC",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
   },
-  modalTitle: { color: "#E5E7EB", fontSize: 18, fontWeight: "700", marginBottom: 8 },
-  modalLabel: { color: "#9fb3c8", marginBottom: 6 },
+  modalTitle: {
+    color: "#0F172A",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  modalLabel: { color: "#0369A1", marginBottom: 6, fontWeight: "700" },
   modalInput: {
-    color: "#E5E7EB",
-    backgroundColor: "#0b1220",
+    color: "#0F172A",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    borderRadius: 10,
+    borderColor: "#7DD3FC",
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   modalBtn: {
-    backgroundColor: "#334155",
+    backgroundColor: "#38BDF8",
     paddingVertical: 10,
     alignItems: "center",
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(56,189,248,0.35)",
+  },
+  modalBtnText: {
+    color: "#0F172A",
+    fontWeight: "800",
+    fontSize: 16,
   },
 });
 
@@ -460,16 +531,40 @@ function buildPredictorHtml(bases) {
   <title>Uniform Check</title>
   <style>
     :root{ --safeTop: env(safe-area-inset-top, 0px); }
-    body{ margin:0; background:#0b0f2d; color:#e5e7eb; font-family:-apple-system,system-ui,sans-serif }
-    .wrap{ padding: calc(var(--safeTop) + 80px) 16px 120px }
-    .card{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:12px; margin-bottom:10px }
-    .imgBox{ background:#0e1621; border-radius:12px; padding:8px }
-    #preview{ width:100%; max-height:60vh; object-fit:contain; border-radius:10px }
+    body{
+      margin:0;
+      background:#E0F7FF;
+      color:#0F172A;
+      font-family:-apple-system,system-ui,sans-serif
+    }
+    .wrap{ padding: calc(var(--safeTop) + 60px) 16px 220px; }
+    .card{
+      background:rgba(255,255,255,.65);
+      border:1px solid rgba(147,197,253,.55);
+      border-radius:16px;
+      padding:12px;
+      margin-bottom:12px;
+      box-shadow:0 6px 14px rgba(125,211,252,.20);
+    }
+    .imgBox{
+      background:rgba(255,255,255,.55);
+      border:1px solid rgba(147,197,253,.45);
+      border-radius:14px;
+      padding:8px;
+    }
+    #preview{
+      width:100%;
+      max-height:60vh;
+      object-fit:contain;
+      border-radius:10px;
+      background:#F0FDFF;
+    }
+    .hint{ color:#0369A1; font-weight:700; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="card" style="color:#a5b4fc">เลือกภาพแล้ว ระบบจะประมวลผลให้อัตโนมัติ</div>
+    <div class="card"><span class="hint">คำแนะนำ:</span> เลือกภาพแล้ว ระบบจะประมวลผลให้อัตโนมัติ</div>
     <div class="card imgBox"><img id="preview" /></div>
   </div>
 
@@ -497,7 +592,7 @@ function buildPredictorHtml(bases) {
       return arr[0];
     }
 
-    // ===== Helpers: normalize + contains-any =====
+    // ===== Helpers =====
     function norm(s){
       return (s||"").toLowerCase().replace(/\\s+/g,"").replace(/[_-]+/g,"").replace(/[^\\wก-๙]/g,"");
     }
@@ -511,7 +606,6 @@ function buildPredictorHtml(bases) {
       return false;
     }
 
-    // กลุ่มคำของชุดนอก/ชุดนักศึกษา
     const OUTER_KEYS = [
       "outer","ชุดนอก","jacket","coat","blazer","overcoat","สูท",
       "เสื้อแจ็คเก็ต","hoodie","cardigan","sweater","ชุดนอกหญิง","ชุดนอกชาย"
@@ -526,14 +620,13 @@ function buildPredictorHtml(bases) {
 
     function evalOuter(pred){
       const label = pred.className || "";
-      theProb = pred.probability || 0;
-      const prob  = theProb; // keep name
+      const prob  = pred.probability || 0;
       const isOuterConf   = containsAny(label, OUTER_KEYS)   && prob >= OUTER_MIN;
       const isUniformConf = containsAny(label, UNIFORM_KEYS) && prob >= UNIFORM_MIN;
 
       if (isOuterConf)   return { pass:false, shouldStop:true,  label, prob }; // ❌ stop
       if (isUniformConf) return { pass:true,  shouldStop:false, label, prob }; // ✅ go on
-      return { pass:true, shouldStop:false, label, prob }; // ไม่ชัด → ผ่านด่านนี้ไปก่อน
+      return { pass:true, shouldStop:false, label, prob };
     }
 
     var models = {};
@@ -571,7 +664,7 @@ function buildPredictorHtml(bases) {
             return;
           }
 
-          // 3) เนคไท / เข็มขัด (ต้องมี)
+          // 3) เนคไท / เข็มขัด
           const t = await topPred(await loadModel("tieMBase"),  img);
           const b = await topPred(await loadModel("beltMBase"), img);
 
@@ -600,7 +693,7 @@ function buildPredictorHtml(bases) {
             return;
           }
 
-          // 3) เข็มขัด/เข็มกลัด/ต่างหู/กระดุม (ต้องมี)
+          // 3) เข็มขัด/เข็มกลัด/ต่างหู/กระดุม
           const bf = await topPred(await loadModel("beltFBase"), img);
           const p  = await topPred(await loadModel("pinFBase"),  img);
           const e  = await topPred(await loadModel("earFBase"),  img);
