@@ -7,11 +7,12 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context"; // 👈 เพิ่มบรรทัดนี้
 import { WebView } from "react-native-webview";
@@ -369,99 +370,107 @@ export default function CheckScreen({ navigation }) {
         </View>
 
         {/* สรุปผล */}
-        <Text style={styles.line}>
-          เพศ: <Text style={styles.val}>{result?.genderTH || "-"}</Text>
-        </Text>
-
-        {result?.gender === "male" && (
-          <>
-            <Text style={styles.line}>
-              ตรวจสอบชุดนักศึกษา:{" "}
-              <Text style={styleFor(result?.detail?.outer)}>
-                {displayDetailText("outer", result?.detail?.outer)}
-              </Text>
-            </Text>
-            <Text style={styles.line}>
-              เนคไท:{" "}
-              <Text style={styleFor(result?.detail?.tie)}>
-                {displayDetailText("tie", result?.detail?.tie)}
-              </Text>
-            </Text>
-            <Text style={styles.line}>
-              เข็มขัด:{" "}
-              <Text style={styleFor(result?.detail?.belt)}>
-                {displayDetailText("belt", result?.detail?.belt)}
-              </Text>
-            </Text>
-            <Text style={styles.line}>
-              รองเท้านักศึกษา:{" "}
-              <Text style={styleFor(result?.detail?.shoe)}>
-                {displayDetailText("shoe", result?.detail?.shoe)}
-              </Text>
-            </Text>
-          </>
-        )}
-
-        {result?.gender === "female" && (
-          <>
-            <Text style={styles.line}>
-              ตรวจสอบชุดนักศึกษา:{" "}
-              <Text style={styleFor(result?.detail?.outer)}>
-                {displayDetailText("outer", result?.detail?.outer)}
-              </Text>
-            </Text>
-            <Text style={styles.line}>
-              เข็มขัด:{" "}
-              <Text style={styleFor(result?.detail?.belt)}>
-                {displayDetailText("belt", result?.detail?.belt)}
-              </Text>
-            </Text>
-            <Text style={styles.line}>
-              เข็มกลัด:{" "}
-              <Text style={styleFor(result?.detail?.pin)}>
-                {displayDetailText("pin", result?.detail?.pin)}
-              </Text>
-            </Text>
-            <Text style={styles.line}>
-              ตุ้งติ้ง:{" "}
-              <Text style={styleFor(result?.detail?.ear)}>
-                {displayDetailText("ear", result?.detail?.ear)}
-              </Text>
-            </Text>
-            <Text style={styles.line}>
-              กระดุม:{" "}
-              <Text style={styleFor(result?.detail?.btn)}>
-                {displayDetailText("btn", result?.detail?.btn)}
-              </Text>
-            </Text>
-            <Text style={styles.line}>
-              รองเท้านักศึกษา:{" "}
-              <Text style={styleFor(result?.detail?.shoe)}>
-                {displayDetailText("shoe", result?.detail?.shoe)}
-              </Text>
-            </Text>
-          </>
-        )}
-
-        <Text style={[styles.line, { marginTop: 6 }]}>
-          ผลรวม:{" "}
-          <Text style={result?.passAll ? styles.ok : styles.bad}>
-            {result
-              ? result.passAll
-                ? "ผ่านเกณฑ์"
-                : "ยังไม่ครบองค์ประกอบ"
-              : "-"}
+                {/* สรุปผล (เลื่อนขึ้น-ลงได้กันข้อความล่างโดนตัด) */}
+        <ScrollView
+          style={styles.summaryScroll}
+          contentContainerStyle={{ paddingBottom: 4 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.line}>
+            เพศ: <Text style={styles.val}>{result?.genderTH || "-"}</Text>
           </Text>
-        </Text>
 
-        {result && result.passAll === false && (
-          <TouchableOpacity
-            style={styles.saveBtn}
-            onPress={() => setShowSave(true)}
-          >
-            <Text style={styles.saveText}>บันทึกการไม่ผ่าน</Text>
-          </TouchableOpacity>
-        )}
+          {result?.gender === "male" && (
+            <>
+              <Text style={styles.line}>
+                ตรวจสอบชุดนักศึกษา:{" "}
+                <Text style={styleFor(result?.detail?.outer)}>
+                  {displayDetailText("outer", result?.detail?.outer)}
+                </Text>
+              </Text>
+              <Text style={styles.line}>
+                เนคไท:{" "}
+                <Text style={styleFor(result?.detail?.tie)}>
+                  {displayDetailText("tie", result?.detail?.tie)}
+                </Text>
+              </Text>
+              <Text style={styles.line}>
+                เข็มขัด:{" "}
+                <Text style={styleFor(result?.detail?.belt)}>
+                  {displayDetailText("belt", result?.detail?.belt)}
+                </Text>
+              </Text>
+              <Text style={styles.line}>
+                รองเท้านักศึกษา:{" "}
+                <Text style={styleFor(result?.detail?.shoe)}>
+                  {displayDetailText("shoe", result?.detail?.shoe)}
+                </Text>
+              </Text>
+            </>
+          )}
+
+          {result?.gender === "female" && (
+            <>
+              <Text style={styles.line}>
+                ตรวจสอบชุดนักศึกษา:{" "}
+                <Text style={styleFor(result?.detail?.outer)}>
+                  {displayDetailText("outer", result?.detail?.outer)}
+                </Text>
+              </Text>
+              <Text style={styles.line}>
+                เข็มขัด:{" "}
+                <Text style={styleFor(result?.detail?.belt)}>
+                  {displayDetailText("belt", result?.detail?.belt)}
+                </Text>
+              </Text>
+              <Text style={styles.line}>
+                เข็มกลัด:{" "}
+                <Text style={styleFor(result?.detail?.pin)}>
+                  {displayDetailText("pin", result?.detail?.pin)}
+                </Text>
+              </Text>
+              <Text style={styles.line}>
+                ตุ้งติ้ง:{" "}
+                <Text style={styleFor(result?.detail?.ear)}>
+                  {displayDetailText("ear", result?.detail?.ear)}
+                </Text>
+              </Text>
+              <Text style={styles.line}>
+                กระดุม:{" "}
+                <Text style={styleFor(result?.detail?.btn)}>
+                  {displayDetailText("btn", result?.detail?.btn)}
+                </Text>
+              </Text>
+              <Text style={styles.line}>
+                รองเท้านักศึกษา:{" "}
+                <Text style={styleFor(result?.detail?.shoe)}>
+                  {displayDetailText("shoe", result?.detail?.shoe)}
+                </Text>
+              </Text>
+            </>
+          )}
+
+          <Text style={[styles.line, { marginTop: 6 }]}>
+            ผลรวม:{" "}
+            <Text style={result?.passAll ? styles.ok : styles.bad}>
+              {result
+                ? result.passAll
+                  ? "ผ่านเกณฑ์"
+                  : "ยังไม่ครบองค์ประกอบ"
+                : "-"}
+            </Text>
+          </Text>
+
+          {result && result.passAll === false && (
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={() => setShowSave(true)}
+            >
+              <Text style={styles.saveText}>บันทึกการไม่ผ่าน</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+
       </View>
 
       {/* Modal กรอกรหัสนักศึกษา */}
@@ -535,6 +544,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(147,197,253,0.55)",
     backgroundColor: "rgba(255,255,255,0.6)",
+    marginBottom: 58,
   },
 
   actionRow: {
