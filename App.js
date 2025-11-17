@@ -14,6 +14,8 @@ import LoginScreen from './screens/LoginScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import RegisterScreen from './screens/RegisterScreen';
 
+// 🔹 เพิ่ม import หน้าใหม่
+import HistoryScreen from './screens/HistoryScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -39,13 +41,29 @@ function MainTabs() {
             style={{ flex: 1 }}
           />
         ),
-        tabBarActiveTintColor: '#00fff2ff',
+        tabBarActiveTintColor: '#00ffffff',
         tabBarInactiveTintColor: '#0026ffff',
         tabBarIcon: ({ color, size }) => {
-          if (route.name === 'หน้าหลัก') return <Ionicons name="home" size={size} color={color} />;
-          if (route.name === 'เช็คชุดนักศึกษา') return <MaterialCommunityIcons name="tshirt-crew" size={size} color={color} />;
-          if (route.name === 'ระเบียบการแต่งกาย') return <Ionicons name="book-outline" size={size} color={color} />;
-          if (route.name === 'โปรไฟล์') return <Ionicons name="person-circle-outline" size={size} color={color} />;
+          if (route.name === 'หน้าหลัก')
+            return <Ionicons name="home" size={size} color={color} />;
+          if (route.name === 'เช็คชุดนักศึกษา')
+            return (
+              <MaterialCommunityIcons
+                name="tshirt-crew"
+                size={size}
+                color={color}
+              />
+            );
+          if (route.name === 'ระเบียบการแต่งกาย')
+            return <Ionicons name="book-outline" size={size} color={color} />;
+          if (route.name === 'โปรไฟล์')
+            return (
+              <Ionicons
+                name="person-circle-outline"
+                size={size}
+                color={color}
+              />
+            );
           return null;
         },
       })}
@@ -57,16 +75,31 @@ function MainTabs() {
     </Tab.Navigator>
   );
 }
+
 // 🔹 สแต็กหลัก
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Login" component={LoginScreen}/>
-        <Stack.Screen name="Register" component={RegisterScreen}/>
-        <Stack.Screen name="Forgot" component={ForgotScreen}/>
+      <Stack.Navigator
+        initialRouteName="Login"
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="Forgot" component={ForgotScreen} />
 
-        <Stack.Screen name="Main" component={MainTabs}/>
+        {/* แท็บหลัก */}
+        <Stack.Screen name="Main" component={MainTabs} />
+
+        {/* 🔹 หน้าใหม่: ประวัตินักศึกษา */}
+        <Stack.Screen
+          name="History"
+          component={HistoryScreen}
+          options={{
+            headerShown: true,
+            title: 'ประวัตินักศึกษาที่เคยไม่ผ่าน',
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

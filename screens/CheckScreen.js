@@ -1,5 +1,4 @@
 // screens/CheckScreen.js
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
@@ -12,17 +11,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // 👈 เพิ่มบรรทัดนี้
 import { WebView } from "react-native-webview";
 import { supabase } from "../config/SupabaseClient";
 
-
-export default function CheckScreen() {
-  const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
-  const bottomGap = Math.max(insets.bottom, 8) + tabBarHeight;
+export default function CheckScreen({ navigation }) {
   const [html, setHtml] = useState(null);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -39,16 +34,33 @@ export default function CheckScreen() {
   const webReadyRef = useRef(false);
   const pendingToSendRef = useRef(null);
 
+  // 👇 ใช้ safe area
+  const insets = useSafeAreaInsets();
+
   // ===== โมเดลที่ใช้งาน =====
-  const GENDER_BASE = "https://teachablemachine.withgoogle.com/models/JwYPDXrEk/";
-  const OUTER_F_BASE = "https://teachablemachine.withgoogle.com/models/B3q_-YwXk/";
-  const OUTER_M_BASE = "https://teachablemachine.withgoogle.com/models/UsbrLeWWx/";
-  const TIE_M_BASE   = "https://teachablemachine.withgoogle.com/models/HWvWDge3a/";
-  const BELT_M_BASE  = "https://teachablemachine.withgoogle.com/models/5caJRMJXa/";
-  const BELT_F_BASE  = "https://teachablemachine.withgoogle.com/models/BoL3rWSWX/";
-  const PIN_F_BASE   = "https://teachablemachine.withgoogle.com/models/zfYzwSvRc/";
-  const EAR_F_BASE   = "https://teachablemachine.withgoogle.com/models/dZQp1_1Cu/";
-  const BTN_F_BASE   = "https://teachablemachine.withgoogle.com/models/iVj_HIvXI/";
+  const GENDER_BASE =
+    "https://teachablemachine.withgoogle.com/models/JwYPDXrEk/";
+  const OUTER_F_BASE =
+    "https://teachablemachine.withgoogle.com/models/B3q_-YwXk/";
+  const OUTER_M_BASE =
+    "https://teachablemachine.withgoogle.com/models/UsbrLeWWx/";
+  const TIE_M_BASE =
+    "https://teachablemachine.withgoogle.com/models/HWvWDge3a/";
+  const BELT_M_BASE =
+    "https://teachablemachine.withgoogle.com/models/QwglYp99n/";
+  const BELT_F_BASE =
+    "https://teachablemachine.withgoogle.com/models/BoL3rWSWX/";
+  const PIN_F_BASE =
+    "https://teachablemachine.withgoogle.com/models/zfYzwSvRc/";
+  const EAR_F_BASE =
+    "https://teachablemachine.withgoogle.com/models/dZQp1_1Cu/";
+  const BTN_F_BASE =
+    "https://teachablemachine.withgoogle.com/models/iVj_HIvXI/";
+
+  const SHOE_F_BASE =
+    "https://teachablemachine.withgoogle.com/models/2lWg58D9U/";
+  const SHOE_M_BASE =
+    "https://teachablemachine.withgoogle.com/models/PrRQBHdTz/";
 
   // เตรียม inspector_id ครั้งแรก
   useEffect(() => {
@@ -63,19 +75,21 @@ export default function CheckScreen() {
     })();
   }, []);
 
-  // สร้าง HTML ของ WebView (ธีมฟ้าใส)
+  // สร้าง HTML ของ WebView
   useEffect(() => {
     setHtml(
       buildPredictorHtml({
         genderBase: GENDER_BASE,
         outerFBase: OUTER_F_BASE,
         outerMBase: OUTER_M_BASE,
-        tieMBase:   TIE_M_BASE,
-        beltMBase:  BELT_M_BASE,
-        beltFBase:  BELT_F_BASE,
-        pinFBase:   PIN_F_BASE,
-        earFBase:   EAR_F_BASE,
-        btnFBase:   BTN_F_BASE,
+        tieMBase: TIE_M_BASE,
+        beltMBase: BELT_M_BASE,
+        beltFBase: BELT_F_BASE,
+        pinFBase: PIN_F_BASE,
+        earFBase: EAR_F_BASE,
+        btnFBase: BTN_F_BASE,
+        shoeFBase: SHOE_F_BASE,
+        shoeMBase: SHOE_M_BASE,
       })
     );
   }, []);
@@ -145,18 +159,24 @@ export default function CheckScreen() {
     }
   }
 
-  // เดิมใช้สำหรับสี/สไตล์
-  const styleFor = (item) => (!item ? styles.val : item.pass ? styles.ok : styles.bad);
-
-  // ---- ข้อความที่ผู้ใช้ขอ: outer => "ชุดนักศึกษา/ชุดไปรเวท", อื่น ๆ => "มี/ไม่มี"
-  function textFor(key, item) {
+  // แปลงค่าผลเป็นข้อความที่ต้องการแสดง
+  function displayDetailText(key, item) {
     if (!item) return "-";
+
     if (key === "outer") {
       return item.pass ? "ชุดนักศึกษา" : "ชุดไปรเวท";
     }
-    // tie / belt / pin / ear / btn
+
+    if (key === "shoe") {
+      return item.pass ? "รองเท้าถูกระเบียบ" : "รองเท้าไม่ถูกระเบียบ";
+    }
+
+    // key อื่น ๆ = เนคไท / เข็มขัด / เข็มกลัด / ต่างหู / กระดุม
     return item.pass ? "มี" : "ไม่มี";
   }
+
+  const styleFor = (item) =>
+    !item ? styles.val : item.pass ? styles.ok : styles.bad;
 
   // ===== แปลงผลที่ "ไม่ผ่าน" ให้เป็นข้อความสั้น ๆ =====
   const ONLY_ONE_FAILURE = false;
@@ -164,13 +184,22 @@ export default function CheckScreen() {
   function failureMessage(gender, key) {
     const g = gender === "male" ? "ชาย" : "หญิง";
     switch (key) {
-      case "outer": return `ใส่ชุดนอก${g}`;
-      case "tie":   return `ไม่มีเนคไท${g}`;
-      case "belt":  return `ไม่มีเข็มขัด${g}`;
-      case "pin":   return `ไม่มีเข็มกลัด`;
-      case "ear":   return `ไม่มีต่างหู`;
-      case "btn":   return `ไม่ติดกระดุม`;
-      default:      return `ไม่ผ่าน`;
+      case "outer":
+        return `ชุดไปรเวท${g}`;
+      case "tie":
+        return `ไม่มีเนคไท${g}`;
+      case "belt":
+        return `ไม่มีเข็มขัด${g}`;
+      case "pin":
+        return `ไม่มีเข็มกลัด`;
+      case "ear":
+        return `ไม่มีต่างหู`;
+      case "btn":
+        return `ไม่ติดกระดุม`;
+      case "shoe":
+        return `รองเท้าไม่ถูกระเบียบ${g}`;
+      default:
+        return `ไม่ผ่าน`;
     }
   }
 
@@ -184,8 +213,10 @@ export default function CheckScreen() {
       }
     }
     if (ONLY_ONE_FAILURE && fails.length > 0) {
-      const priority = ["outer", "belt", "tie", "pin", "ear", "btn"];
-      fails.sort((a, b) => priority.indexOf(a.key) - priority.indexOf(b.key));
+      const priority = ["outer", "belt", "tie", "shoe", "pin", "ear", "btn"];
+      fails.sort(
+        (a, b) => priority.indexOf(a.key) - priority.indexOf(b.key)
+      );
       return [fails[0].text];
     }
     return fails.map((f) => f.text);
@@ -219,7 +250,7 @@ export default function CheckScreen() {
         student_id: studentId.trim(),
         inspector_id: inspectorId,
         gender: result.gender,
-        failed: failures,   // jsonb[] (array of string)
+        failed: failures, // jsonb[] (array of string)
         pass_all: false,
       };
 
@@ -238,7 +269,7 @@ export default function CheckScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: bottomGap }]}>
+    <View style={styles.container}>
       {html ? (
         <WebView
           ref={webRef}
@@ -250,7 +281,6 @@ export default function CheckScreen() {
           allowUniversalAccessFromFileURLs
           mixedContentMode="always"
           setSupportMultipleWindows={false}
-          androidLayerType="software"
           style={{ flex: 1, backgroundColor: "#E0F7FF" }}
           onLoadEnd={() => {
             webReadyRef.current = true;
@@ -258,7 +288,9 @@ export default function CheckScreen() {
               const dataUrl = pendingToSendRef.current;
               pendingToSendRef.current = null;
               setTimeout(() => {
-                webRef.current?.postMessage(JSON.stringify({ type: "image", dataUrl }));
+                webRef.current?.postMessage(
+                  JSON.stringify({ type: "image", dataUrl })
+                );
               }, 500);
             }
           }}
@@ -282,18 +314,61 @@ export default function CheckScreen() {
         </View>
       )}
 
-      {/* ปุ่มลอยสองปุ่ม: ถ่ายภาพ & เลือกรูป */}
-      <View style={[styles.pickRow, { bottom: 16 + tabBarHeight + insets.bottom }]}>
-        <TouchableOpacity onPress={openCamera} style={[styles.pickBtn, { marginRight: 8 }]} disabled={busy} activeOpacity={0.9}>
-          {busy ? <ActivityIndicator color="#0F172A" /> : <Text style={styles.pickText}>ถ่ายภาพ</Text>}
-        </TouchableOpacity>
-        <TouchableOpacity onPress={openLibrary} style={styles.pickBtn} disabled={busy} activeOpacity={0.9}>
-          {busy ? <ActivityIndicator color="#0F172A" /> : <Text style={styles.pickText}>เลือกรูป</Text>}
-        </TouchableOpacity>
-      </View>
+      {/* ===== แถบล่าง: ปุ่ม + สรุปผล ===== */}
+      <View
+        style={[
+          styles.footer,
+          {
+            // เคารพ safe area + เผื่ออีกหน่อย กันแท็บล่างบัง
+            paddingBottom: (insets.bottom || 0) + 16,
+          },
+        ]}
+      >
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            onPress={openCamera}
+            style={styles.pickBtn}
+            disabled={busy}
+            activeOpacity={0.9}
+          >
+            {busy ? (
+              <ActivityIndicator color="#0F172A" />
+            ) : (
+              <Text style={styles.pickText}>ถ่ายภาพ</Text>
+            )}
+          </TouchableOpacity>
 
-      {/* ===== แสดงผลสรุป ===== */}
-      <View style={[styles.footer, { paddingBottom: 12 + insets.bottom }]}>
+          <TouchableOpacity
+            onPress={openLibrary}
+            style={styles.pickBtn}
+            disabled={busy}
+            activeOpacity={0.9}
+          >
+            {busy ? (
+              <ActivityIndicator color="#0F172A" />
+            ) : (
+              <Text style={styles.pickText}>เลือกรูป</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.historyBtn}
+            onPress={() => {
+              if (navigation?.navigate) {
+                navigation.navigate("History");
+              } else {
+                Alert.alert(
+                  "ยังไม่ได้เชื่อมหน้า",
+                  "ยังไม่ได้กำหนดหน้าประวัติใน Navigator"
+                );
+              }
+            }}
+          >
+            <Text style={styles.historyText}>ดูประวัตินักศึกษาที่ไม่ผ่าน</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* สรุปผล */}
         <Text style={styles.line}>
           เพศ: <Text style={styles.val}>{result?.genderTH || "-"}</Text>
         </Text>
@@ -303,19 +378,25 @@ export default function CheckScreen() {
             <Text style={styles.line}>
               ตรวจสอบชุดนักศึกษา:{" "}
               <Text style={styleFor(result?.detail?.outer)}>
-                {textFor("outer", result?.detail?.outer)}
+                {displayDetailText("outer", result?.detail?.outer)}
               </Text>
             </Text>
             <Text style={styles.line}>
               เนคไท:{" "}
               <Text style={styleFor(result?.detail?.tie)}>
-                {textFor("tie", result?.detail?.tie)}
+                {displayDetailText("tie", result?.detail?.tie)}
               </Text>
             </Text>
             <Text style={styles.line}>
               เข็มขัด:{" "}
               <Text style={styleFor(result?.detail?.belt)}>
-                {textFor("belt", result?.detail?.belt)}
+                {displayDetailText("belt", result?.detail?.belt)}
+              </Text>
+            </Text>
+            <Text style={styles.line}>
+              รองเท้านักศึกษา:{" "}
+              <Text style={styleFor(result?.detail?.shoe)}>
+                {displayDetailText("shoe", result?.detail?.shoe)}
               </Text>
             </Text>
           </>
@@ -326,31 +407,37 @@ export default function CheckScreen() {
             <Text style={styles.line}>
               ตรวจสอบชุดนักศึกษา:{" "}
               <Text style={styleFor(result?.detail?.outer)}>
-                {textFor("outer", result?.detail?.outer)}
+                {displayDetailText("outer", result?.detail?.outer)}
               </Text>
             </Text>
             <Text style={styles.line}>
               เข็มขัด:{" "}
               <Text style={styleFor(result?.detail?.belt)}>
-                {textFor("belt", result?.detail?.belt)}
+                {displayDetailText("belt", result?.detail?.belt)}
               </Text>
             </Text>
             <Text style={styles.line}>
               เข็มกลัด:{" "}
               <Text style={styleFor(result?.detail?.pin)}>
-                {textFor("pin", result?.detail?.pin)}
+                {displayDetailText("pin", result?.detail?.pin)}
               </Text>
             </Text>
             <Text style={styles.line}>
               ตุ้งติ้ง:{" "}
               <Text style={styleFor(result?.detail?.ear)}>
-                {textFor("ear", result?.detail?.ear)}
+                {displayDetailText("ear", result?.detail?.ear)}
               </Text>
             </Text>
             <Text style={styles.line}>
               กระดุม:{" "}
               <Text style={styleFor(result?.detail?.btn)}>
-                {textFor("btn", result?.detail?.btn)}
+                {displayDetailText("btn", result?.detail?.btn)}
+              </Text>
+            </Text>
+            <Text style={styles.line}>
+              รองเท้านักศึกษา:{" "}
+              <Text style={styleFor(result?.detail?.shoe)}>
+                {displayDetailText("shoe", result?.detail?.shoe)}
               </Text>
             </Text>
           </>
@@ -359,19 +446,31 @@ export default function CheckScreen() {
         <Text style={[styles.line, { marginTop: 6 }]}>
           ผลรวม:{" "}
           <Text style={result?.passAll ? styles.ok : styles.bad}>
-            {result ? (result.passAll ? "ผ่านเกณฑ์" : "ยังไม่ครบองค์ประกอบ") : "-"}
+            {result
+              ? result.passAll
+                ? "ผ่านเกณฑ์"
+                : "ยังไม่ครบองค์ประกอบ"
+              : "-"}
           </Text>
         </Text>
 
         {result && result.passAll === false && (
-          <TouchableOpacity style={styles.saveBtn} onPress={() => setShowSave(true)}>
+          <TouchableOpacity
+            style={styles.saveBtn}
+            onPress={() => setShowSave(true)}
+          >
             <Text style={styles.saveText}>บันทึกการไม่ผ่าน</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Modal กรอกรหัสนักศึกษา */}
-      <Modal visible={showSave} transparent animationType="fade" onRequestClose={() => setShowSave(false)}>
+      <Modal
+        visible={showSave}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSave(false)}
+      >
         <View style={styles.modalWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>บันทึกการไม่ผ่าน</Text>
@@ -390,13 +489,30 @@ export default function CheckScreen() {
             <View style={{ height: 10 }} />
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity
-                style={[styles.modalBtn, { flex: 1, backgroundColor: "#E2F3FF", borderColor: "rgba(56,189,248,0.35)" }]}
+                style={[
+                  styles.modalBtn,
+                  {
+                    flex: 1,
+                    backgroundColor: "#E2F3FF",
+                    borderColor: "rgba(56,189,248,0.35)",
+                  },
+                ]}
                 onPress={() => setShowSave(false)}
               >
-                <Text style={[styles.modalBtnText, { color: "#0F172A" }]}>ยกเลิก</Text>
+                <Text style={[styles.modalBtnText, { color: "#0F172A" }]}>
+                  ยกเลิก
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { flex: 1 }]} onPress={saveFailure} disabled={saving}>
-                {saving ? <ActivityIndicator color="#0F172A" /> : <Text style={styles.modalBtnText}>บันทึก</Text>}
+              <TouchableOpacity
+                style={[styles.modalBtn, { flex: 1 }]}
+                onPress={saveFailure}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#0F172A" />
+                ) : (
+                  <Text style={styles.modalBtnText}>บันทึก</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -406,49 +522,64 @@ export default function CheckScreen() {
   );
 }
 
-/* ---------- styles (ธีมฟ้าใสให้แมตช์หน้า Login) ---------- */
+/* ---------- styles (ธีมฟ้าใส) ---------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#E0F7FF" }, // ฟ้าอ่อนสว่าง
+  container: { flex: 1, backgroundColor: "#E0F7FF" },
+
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
 
   footer: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    // paddingBottom จะไปใส่เพิ่มจาก safe area ตอนใช้จริง
     borderTopWidth: 1,
     borderTopColor: "rgba(147,197,253,0.55)",
     backgroundColor: "rgba(255,255,255,0.6)",
-    shadowColor: "#7DD3FC",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: -2 },
-    shadowRadius: 6,
-    paddingBottom: 12,
   },
+
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    gap: 8,
+  },
+
   line: { color: "#0F172A", fontSize: 14, marginBottom: 2 },
   val: { color: "#0EA5E9", fontWeight: "700" },
   ok: { color: "#16A34A", fontWeight: "800" },
   bad: { color: "#DC2626", fontWeight: "800" },
 
-  // ปุ่มลอย
-  pickRow: {
-    position: "absolute",
-    right: 16,
-    bottom: 24,
-    flexDirection: "row",
-    zIndex: 20, 
-    elevation: 8,
-  },
   pickBtn: {
+    flex: 1,
     backgroundColor: "#BAE6FD",
     borderWidth: 1,
     borderColor: "#7DD3FC",
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 14,
-    shadowColor: "#67E8F9",
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
   pickText: { color: "#0F172A", fontWeight: "800", fontSize: 15 },
+
+  historyBtn: {
+    flex: 1.4,
+    backgroundColor: "#E0F2FE",
+    borderWidth: 1,
+    borderColor: "rgba(37,99,235,0.35)",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  historyText: {
+    color: "#1D4ED8",
+    fontWeight: "700",
+    fontSize: 14,
+    textAlign: "center",
+  },
 
   saveBtn: {
     marginTop: 10,
@@ -459,10 +590,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 12,
-    shadowColor: "#67E8F9",
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 5,
   },
   saveText: { color: "#0F172A", fontWeight: "800" },
 
@@ -516,10 +643,12 @@ const styles = StyleSheet.create({
   },
 });
 
-/* ---------- HTML ฝั่ง WebView (pipeline) ---------- */
+/* ---------- HTML ฝั่ง WebView ---------- */
 function buildPredictorHtml(bases) {
-  const TF_URL = "https://unpkg.com/@tensorflow/tfjs@4.13.0/dist/tf.min.js";
-  const TM_URL = "https://unpkg.com/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js";
+  const TF_URL =
+    "https://unpkg.com/@tensorflow/tfjs@4.13.0/dist/tf.min.js";
+  const TM_URL =
+    "https://unpkg.com/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js";
 
   return `<!doctype html>
 <html lang="th">
@@ -537,7 +666,9 @@ function buildPredictorHtml(bases) {
       color:#0F172A;
       font-family:-apple-system,system-ui,sans-serif
     }
-    .wrap{ padding: calc(var(--safeTop) + 60px) 16px 220px; }
+    .wrap{
+      padding: calc(var(--safeTop) + 60px) 16px 120px;
+    }
     .card{
       background:rgba(255,255,255,.65);
       border:1px solid rgba(147,197,253,.55);
@@ -592,7 +723,6 @@ function buildPredictorHtml(bases) {
       return arr[0];
     }
 
-    // ===== Helpers =====
     function norm(s){
       return (s||"").toLowerCase().replace(/\\s+/g,"").replace(/[_-]+/g,"").replace(/[^\\wก-๙]/g,"");
     }
@@ -624,8 +754,8 @@ function buildPredictorHtml(bases) {
       const isOuterConf   = containsAny(label, OUTER_KEYS)   && prob >= OUTER_MIN;
       const isUniformConf = containsAny(label, UNIFORM_KEYS) && prob >= UNIFORM_MIN;
 
-      if (isOuterConf)   return { pass:false, shouldStop:true,  label, prob }; // ❌ stop
-      if (isUniformConf) return { pass:true,  shouldStop:false, label, prob }; // ✅ go on
+      if (isOuterConf)   return { pass:false, shouldStop:true,  label, prob };
+      if (isUniformConf) return { pass:true,  shouldStop:false, label, prob };
       return { pass:true, shouldStop:false, label, prob };
     }
 
@@ -643,7 +773,6 @@ function buildPredictorHtml(bases) {
       try{
         await ensureLibs();
 
-        // 1) เพศ
         var mGender = await loadModel("genderBase");
         var g = await topPred(mGender, img);
         var isMale = containsAny(g.className, ["male","man","ชาย","boy"]);
@@ -654,7 +783,7 @@ function buildPredictorHtml(bases) {
         var passAll = false;
 
         if(isMale){
-          // 2) ชุดนอกชาย
+          // ===== ชาย =====
           const outerPred = await topPred(await loadModel("outerMBase"), img);
           const out = evalOuter(outerPred);
           detail.outer = { label: out.label, prob: out.prob, pass: out.pass };
@@ -664,9 +793,9 @@ function buildPredictorHtml(bases) {
             return;
           }
 
-          // 3) เนคไท / เข็มขัด
           const t = await topPred(await loadModel("tieMBase"),  img);
           const b = await topPred(await loadModel("beltMBase"), img);
+          const s = await topPred(await loadModel("shoeMBase"), img);
 
           const passTie  = passIfHas(t.className,
             ["tie","necktie","มีเนคไท","เนคไทชาย"],
@@ -676,14 +805,19 @@ function buildPredictorHtml(bases) {
             ["belt","withbelt","มีเข็มขัด","ใส่เข็มขัด"],
             ["no_belt","nobelt","ไม่มีเข็มขัด","ไม่ใส่เข็มขัด","ไม่มี"]
           );
+          const passShoe = passIfHas(s.className,
+            ["รองเท้าชายถูก","รองเท้าถูกระเบียบ","ถูกระเบียบ","correct"],
+            ["รองเท้าชายผิด","รองเท้าผิดระเบียบ","ผิดระเบียบ","wrong"]
+          );
 
           detail.tie  = { label:t.className, prob:t.probability, pass: passTie  };
           detail.belt = { label:b.className, prob:b.probability, pass: passBelt };
+          detail.shoe = { label:s.className, prob:s.probability, pass: passShoe };
 
-          passAll = (out.pass && passTie && passBelt);
+          passAll = (out.pass && passTie && passBelt && passShoe);
 
         } else {
-          // 2) ชุดนอกหญิง
+          // ===== หญิง =====
           const outerPredF = await topPred(await loadModel("outerFBase"), img);
           const outF = evalOuter(outerPredF);
           detail.outer = { label: outF.label, prob: outF.prob, pass: outF.pass };
@@ -693,11 +827,11 @@ function buildPredictorHtml(bases) {
             return;
           }
 
-          // 3) เข็มขัด/เข็มกลัด/ต่างหู/กระดุม
           const bf = await topPred(await loadModel("beltFBase"), img);
           const p  = await topPred(await loadModel("pinFBase"),  img);
           const e  = await topPred(await loadModel("earFBase"),  img);
           const bt = await topPred(await loadModel("btnFBase"),  img);
+          const sf = await topPred(await loadModel("shoeFBase"), img);
 
           const passBeltF = passIfHas(bf.className,
             ["belt","withbelt","เข็มขัดหญิง","ใส่เข็มขัด"],
@@ -715,13 +849,18 @@ function buildPredictorHtml(bases) {
             ["button","กระดุม","มีกระดุม","ติดกระดุม"],
             ["no_button","nobutton","ไม่มีกระดุม","ไม่ติดกระดุม","ไม่มี"]
           );
+          const passShoeF = passIfHas(sf.className,
+            ["รองเท้าถูกระเบียบ","รองเท้าหญิงถูก","ถูกระเบียบ","correct"],
+            ["รองเท้าผิดระเบียบ","รองเท้าหญิงผิด","ผิดระเบียบ","wrong"]
+          );
 
           detail.belt = { label:bf.className, prob:bf.probability, pass: passBeltF };
           detail.pin  = { label:p.className,  prob:p.probability,  pass: passPin   };
           detail.ear  = { label:e.className,  prob:e.probability,  pass: passEar   };
           detail.btn  = { label:bt.className, prob:bt.probability, pass: passBtn   };
+          detail.shoe = { label:sf.className, prob:sf.probability, pass: passShoeF };
 
-          passAll = (outF.pass && passBeltF && passPin && passEar && passBtn);
+          passAll = (outF.pass && passBeltF && passPin && passEar && passBtn && passShoeF);
         }
 
         window.ReactNativeWebView.postMessage(JSON.stringify({ type:"result", gender, genderTH, detail, passAll }));
@@ -741,8 +880,8 @@ function buildPredictorHtml(bases) {
         }
       }catch(_){}
     }
-    document.addEventListener("message", handleRNMessage); // Android
-    window.addEventListener("message", handleRNMessage);  // iOS
+    document.addEventListener("message", handleRNMessage);
+    window.addEventListener("message", handleRNMessage);
   </script>
 </body>
 </html>`;
