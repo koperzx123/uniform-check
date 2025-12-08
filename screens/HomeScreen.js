@@ -1,49 +1,68 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function HomeScreen({ navigation }) {
   return (
     <ImageBackground
-      source={{ uri: 'https://images.unsplash.com/photo-1522199710521-72d69614c702?auto=format&fit=crop&w=1000&q=80' }}
+      source={{
+        uri: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1400&q=80",
+      }}
       style={styles.bg}
-      blurRadius={8}
+      blurRadius={10}
     >
-      {/* Overlay gradient */}
+      {/* 🔥 เลเยอร์มืดทับพื้นหลัง เพื่อให้ไอคอนเด่นขึ้น */}
       <LinearGradient
-        colors={['rgba(6, 8, 22, 0.9)', 'rgba(18, 24, 38, 0.8)']}
+        colors={[
+          "rgba(0,0,0,0.50)",
+          "rgba(0,0,0,0.35)",
+          "rgba(0,0,0,0.20)"
+        ]}
         style={StyleSheet.absoluteFill}
       />
 
       <View style={styles.container}>
-        <Text style={styles.title}>UTCC Uniform Check</Text>
-        <Text style={styles.subtitle}>ระบบตรวจสอบชุดนักศึกษายุคอนาคต ✦</Text>
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>UTCC • Uniform Check</Text>
+          <Text style={styles.subtitle}>ระบบตรวจสอบชุดนักศึกษา ✦</Text>
+        </View>
 
-        <View style={styles.cardContainer}>
+        {/* ปุ่มต่างๆ */}
+        <View style={styles.cardGrid}>
           <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate('เช็คชุดนักศึกษา')}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate("เช็คชุดนักศึกษา")}
           >
-            <Ionicons name="shirt-outline" size={40} color="#93C5FD" />
-            <Text style={styles.cardText}>เช็คเครื่องแต่งกาย</Text>
+            <BlurView intensity={30} tint="dark" style={styles.card}>
+              <Ionicons name="shirt-outline" size={44} color="#38BDF8" />
+              <Text style={styles.cardText}>เช็คเครื่องแต่งกาย</Text>
+            </BlurView>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate('ระเบียบการแต่งกาย')}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate("ระเบียบการแต่งกาย")}
           >
-            <Ionicons name="book-outline" size={40} color="#A5B4FC" />
-            <Text style={styles.cardText}>อ่านระเบียบ</Text>
+            <BlurView intensity={30} tint="dark" style={styles.card}>
+              <Ionicons name="book-outline" size={44} color="#60A5FA" />
+              <Text style={styles.cardText}>อ่านระเบียบ</Text>
+            </BlurView>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate('โปรไฟล์')}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate("โปรไฟล์")}
           >
-            <Ionicons name="person-outline" size={40} color="#C084FC" />
-            <Text style={styles.cardText}>โปรไฟล์ผู้ใช้</Text>
+            <BlurView intensity={30} tint="dark" style={styles.card}>
+              <Ionicons name="person-outline" size={44} color="#7DD3FC" />
+              <Text style={styles.cardText}>โปรไฟล์ผู้ใช้</Text>
+            </BlurView>
           </TouchableOpacity>
         </View>
+
       </View>
     </ImageBackground>
   );
@@ -52,53 +71,68 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   bg: {
     flex: 1,
-    resizeMode: 'cover',
+    resizeMode: "cover",
   },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
+    justifyContent: "center",
+    alignItems: "center",
   },
+  header: {
+    alignItems: "center",
+    marginBottom: 28,
+  },
+
+  // 🟦 ข้อความอ่านง่ายขึ้น (เป็นสีขาว)
   title: {
-    color: '#fff',
+    color: "#FFFFFF",
     fontSize: 28,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontWeight: "800",
     letterSpacing: 0.5,
-    marginBottom: 8,
+    textAlign: "center",
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.7)',
+    color: "rgba(255,255,255,0.85)",
     fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
+    marginTop: 6,
+    textAlign: "center",
   },
-  cardContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+
+  cardGrid: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
     gap: 16,
   },
+
   card: {
     width: 140,
     height: 140,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 18,
+    borderRadius: 20,
+    padding: 14,
+    justifyContent: "center",
+    alignItems: "center",
+
+    backgroundColor: "rgba(255,255,255,0.10)",
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#60A5FA',
-    shadowOpacity: 0.4,
+    borderColor: "rgba(255,255,255,0.30)",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
     shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+
+    overflow: "hidden",
   },
+
+  // 🟦 ปรับเป็นขาว อ่านชัดขึ้น
   cardText: {
-    color: '#E0E7FF',
+    color: "#FFFFFF",
     fontSize: 14,
     marginTop: 10,
-    textAlign: 'center',
-    fontWeight: '600',
+    textAlign: "center",
+    fontWeight: "700",
   },
 });

@@ -1,8 +1,20 @@
+// screens/ForgotScreen.js
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Dimensions, Easing, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  Easing,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { supabase } from "../config/SupabaseClient";
 
 const { width, height } = Dimensions.get("window");
@@ -11,11 +23,16 @@ export default function ForgotScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ดาวลอยช้า ๆ
+  // ดาวลอยช้า ๆ (ฟ้าใส)
   const starAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
-      Animated.timing(starAnim, { toValue: 1, duration: 12000, easing: Easing.linear, useNativeDriver: true })
+      Animated.timing(starAnim, {
+        toValue: 1,
+        duration: 12000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
     ).start();
   }, []);
   const stars = useMemo(() => {
@@ -24,7 +41,7 @@ export default function ForgotScreen({ navigation }) {
       key: `star-${i}`,
       x: Math.random() * width,
       y: Math.random() * height,
-      size: Math.random() * 2 + 1.2
+      size: Math.random() * 2 + 1.2,
     }));
   }, []);
 
@@ -34,16 +51,14 @@ export default function ForgotScreen({ navigation }) {
     try {
       setLoading(true);
 
-      // สร้าง redirect URL ให้เหมาะกับแอป (แนะนำใช้ scheme ของคุณเอง)
-      // 1) ตั้งค่าใน app.json > scheme เช่น "utccuniform"
-      // 2) ใน Supabase Authentication > URL ให้ใส่ลิงก์นี้
-      // ตัวอย่าง:
-      const redirectTo = Linking.createURL("/auth/callback"); 
-      // ถ้าใช้เว็บ ให้เปลี่ยนเป็น https://YOURDOMAIN.com/auth/callback
+      // สร้าง redirect URL ให้ตรงกับแอป/โดเมนของคุณ
+      // ตัวอย่าง deep link: app.json -> "scheme": "utccuniform"
+      // แล้วใช้: utccuniform://auth/callback
+      const redirectTo = Linking.createURL("/auth/callback");
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
       if (error) return Alert.alert("ส่งลิงก์ไม่สำเร็จ", error.message);
+
       Alert.alert("สำเร็จ", "ส่งลิงก์รีเซ็ตรหัสผ่านแล้ว โปรดตรวจอีเมลของคุณ");
       navigation.goBack();
     } finally {
@@ -53,37 +68,54 @@ export default function ForgotScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* พื้นหลังกาแล็กซี */}
+      {/* พื้นหลังฟ้าใส */}
       <LinearGradient
-        colors={["#060816", "#0b0f2d", "#1a1f4d"]}
+        colors={["#E0F7FF", "#BAE6FD", "#A5F3FC"]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      {/* ออโรร่า */}
+
+      {/* ออโรร่าโทนฟ้า */}
       <LinearGradient
-        colors={["rgba(0,255,255,0.25)", "rgba(138,43,226,0.22)", "transparent"]}
-        start={{ x: 0.2, y: 0.1 }}
+        colors={["rgba(186,230,253,0.6)", "rgba(165,243,252,0.45)", "transparent"]}
+        start={{ x: 0.3, y: 0.2 }}
         end={{ x: 1, y: 1 }}
         style={styles.aurora}
       />
 
       {/* ดาว */}
-      {stars.map((s, idx) => {
-        const translateY = starAnim.interpolate({ inputRange: [0, 1], outputRange: [s.y, s.y - 40] });
-        const opacity = starAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.4, 1, 0.4] });
+      {stars.map((s) => {
+        const translateY = starAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [s.y, s.y - 40],
+        });
+        const opacity = starAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0.3, 0.9, 0.3],
+        });
         return (
           <Animated.View
             key={s.key}
-            style={[styles.star, { left: s.x, transform: [{ translateY }], opacity, width: s.size, height: s.size, borderRadius: s.size / 2 }]}
+            style={[
+              styles.star,
+              {
+                left: s.x,
+                transform: [{ translateY }],
+                opacity,
+                width: s.size,
+                height: s.size,
+                borderRadius: s.size / 2,
+              },
+            ]}
           />
         );
       })}
 
-      {/* การ์ดกระจก */}
+      {/* การ์ดกระจกโปร่งแสง */}
       <View style={styles.centerWrap}>
-        <BlurView intensity={Platform.OS === "ios" ? 35 : 20} tint="dark" style={styles.card}>
-          <Text style={styles.title}>Recover Access</Text>
+        <BlurView intensity={Platform.OS === "ios" ? 42 : 28} tint="light" style={styles.card}>
+          <Text style={styles.title}>Reset password</Text>
           <Text style={styles.subtitle}>ป้อนอีเมลเพื่อรับลิงก์รีเซ็ตรหัสผ่าน</Text>
 
           <FuturisticInput
@@ -95,18 +127,23 @@ export default function ForgotScreen({ navigation }) {
           />
 
           <TouchableOpacity disabled={loading} onPress={onSend} activeOpacity={0.9} style={styles.btnShadow}>
-            <LinearGradient colors={["#6EE7F9", "#8B5CF6", "#EC4899"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.button}>
+            <LinearGradient
+              colors={["#A5F3FC", "#7DD3FC", "#38BDF8"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.button}
+            >
               <Text style={styles.btnText}>{loading ? "SENDING..." : "SEND RESET LINK"}</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
-            <Text style={styles.linkText}>ย้อนกลับไปหน้าเข้าสู่ระบบ</Text>
+            <Text style={styles.linkText}>Go back to the login</Text>
           </TouchableOpacity>
         </BlurView>
 
         <LinearGradient
-          colors={["transparent", "rgba(110,231,249,0.35)", "transparent"]}
+          colors={["transparent", "rgba(56,189,248,0.45)", "transparent"]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.underGlow}
@@ -121,16 +158,33 @@ function FuturisticInput(props) {
   const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(glow, { toValue: focused ? 1 : 0, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
+    Animated.timing(glow, {
+      toValue: focused ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
   }, [focused]);
 
-  const borderColor = glow.interpolate({ inputRange: [0, 1], outputRange: ["rgba(255,255,255,0.12)", "rgba(110,231,249,0.9)"] });
-  const shadowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.6] });
+  const borderColor = glow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(3,105,161,0.18)", "rgba(56,189,248,0.9)"],
+  });
+  const backgroundColor = glow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,255,255,0.28)", "rgba(255,255,255,0.4)"],
+  });
 
   return (
     <View style={{ width: "100%", marginBottom: 14 }}>
-      <Animated.View style={[styles.inputWrap, { borderColor, shadowOpacity }]}>
-        <TextInput placeholderTextColor="rgba(255,255,255,0.5)" style={styles.input} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} {...props} />
+      <Animated.View style={[styles.inputWrap, { borderColor, backgroundColor }]}>
+        <TextInput
+          placeholderTextColor="rgba(15,23,42,0.45)"
+          style={styles.input}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          {...props}
+        />
       </Animated.View>
       <Animated.View style={[styles.inputGlowLine, { opacity: glow }]} />
     </View>
@@ -138,7 +192,8 @@ function FuturisticInput(props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#060816" },
+  container: { flex: 1, backgroundColor: "#E0F7FF" }, // ฟ้าอ่อนสว่าง
+
   aurora: {
     position: "absolute",
     width: width * 1.2,
@@ -146,45 +201,73 @@ const styles = StyleSheet.create({
     borderRadius: width * 0.6,
     top: -width * 0.3,
     right: -width * 0.3,
-    opacity: 0.5,
-    transform: [{ rotate: "25deg" }],
+    opacity: 0.8,
+    backgroundColor: "#CFFAFE",
   },
-  star: { position: "absolute", backgroundColor: "#fff" },
-  centerWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
+  star: { position: "absolute", backgroundColor: "#CFFAFE" },
+
+  centerWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 22,
+  },
+
   card: {
     width: "100%",
-    borderRadius: 22,
-    padding: 22,
+    borderRadius: 24,
+    padding: 26,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(10,14,28,0.45)",
+    borderColor: "rgba(147,197,253,0.55)",
+    backgroundColor: "rgba(255,255,255,0.26)", // โปร่งแสงเหมือนน้ำ
     overflow: "hidden",
+    shadowColor: "#7DD3FC",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
   },
-  title: { color: "#E5E7EB", fontSize: 22, fontWeight: "700", letterSpacing: 0.5 },
-  subtitle: { color: "rgba(229,231,235,0.65)", marginBottom: 18, marginTop: 6 },
+
+  title: {
+    color: "#0F172A",
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textAlign: "center",
+  },
+  subtitle: {
+    color: "rgba(15,23,42,0.65)",
+    marginBottom: 18,
+    marginTop: 4,
+    textAlign: "center",
+  },
+
   inputWrap: {
     borderWidth: 1,
     borderRadius: 14,
-    backgroundColor: "rgba(18,24,38,0.65)",
-    shadowColor: "#6EE7F9",
+    backgroundColor: "rgba(255,255,255,0.28)",
+    borderColor: "#7DD3FC",
+    shadowColor: "#67E8F9",
     shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 8,
+    shadowRadius: 10,
   },
-  input: { color: "#fff", paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  inputGlowLine: { height: 2, width: "100%", borderRadius: 2, backgroundColor: "rgba(110,231,249,0.8)" },
+  input: { color: "#0F172A", paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  inputGlowLine: { height: 2, width: "100%", borderRadius: 2, backgroundColor: "#67E8F9" },
+
   btnShadow: {
     borderRadius: 14,
     overflow: "hidden",
     marginTop: 8,
-    shadowColor: "#8B5CF6",
+    shadowColor: "#38BDF8",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 14,
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
     elevation: 8,
   },
   button: { paddingVertical: 14, borderRadius: 14, alignItems: "center" },
-  btnText: { color: "#0b0f1f", fontWeight: "800", letterSpacing: 1 },
+  btnText: { color: "#0F172A", fontWeight: "800", letterSpacing: 1 },
+
   backLink: { alignItems: "center", marginTop: 12 },
-  linkText: { color: "#A5B4FC", fontWeight: "600" },
-  underGlow: { width: "70%", height: 2, marginTop: 12, borderRadius: 2 },
+  linkText: { color: "#0369A1", fontWeight: "700" },
+
+  underGlow: { width: "70%", height: 2, marginTop: 12, borderRadius: 2, backgroundColor: "#67E8F9" },
 });

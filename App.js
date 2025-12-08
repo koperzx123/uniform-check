@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { BlurView } from 'expo-blur';
 import CheckScreen from './screens/CheckScreen';
 import DressCodeScreen from './screens/DressCodeScreen';
 import ForgotScreen from './screens/ForgotScreen';
@@ -12,6 +13,9 @@ import HomeScreen from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import RegisterScreen from './screens/RegisterScreen';
+
+// 🔹 เพิ่ม import หน้าใหม่
+import HistoryScreen from './screens/HistoryScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -24,18 +28,42 @@ function MainTabs() {
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: {
-          backgroundColor: '#0E1621',
-          borderTopColor: '#1f2937',
+          position: 'absolute',
+          backgroundColor: 'rgba(255,255,255,0.12)',  // โปร่งใส
+          borderTopWidth: 0,
+          elevation: 0,
           height: 70,
-          paddingBottom: 8,
         },
-        tabBarActiveTintColor: '#60a5fa',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarBackground: () => (
+          <BlurView
+            tint="dark"
+            intensity={40}
+            style={{ flex: 1 }}
+          />
+        ),
+        tabBarActiveTintColor: '#00ffffff',
+        tabBarInactiveTintColor: '#0026ffff',
         tabBarIcon: ({ color, size }) => {
-          if (route.name === 'หน้าหลัก') return <Ionicons name="home" size={size} color={color} />;
-          if (route.name === 'เช็คชุดนักศึกษา') return <MaterialCommunityIcons name="tshirt-crew" size={size} color={color} />;
-          if (route.name === 'ระเบียบการแต่งกาย') return <Ionicons name="book-outline" size={size} color={color} />;
-          if (route.name === 'โปรไฟล์') return <Ionicons name="person-circle-outline" size={size} color={color} />;
+          if (route.name === 'หน้าหลัก')
+            return <Ionicons name="home" size={size} color={color} />;
+          if (route.name === 'เช็คชุดนักศึกษา')
+            return (
+              <MaterialCommunityIcons
+                name="tshirt-crew"
+                size={size}
+                color={color}
+              />
+            );
+          if (route.name === 'ระเบียบการแต่งกาย')
+            return <Ionicons name="book-outline" size={size} color={color} />;
+          if (route.name === 'โปรไฟล์')
+            return (
+              <Ionicons
+                name="person-circle-outline"
+                size={size}
+                color={color}
+              />
+            );
           return null;
         },
       })}
@@ -52,12 +80,26 @@ function MainTabs() {
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Login" component={LoginScreen}/>
-        <Stack.Screen name="Register" component={RegisterScreen}/>
-        <Stack.Screen name="Forgot" component={ForgotScreen}/>
+      <Stack.Navigator
+        initialRouteName="Login"
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="Forgot" component={ForgotScreen} />
 
-        <Stack.Screen name="Main" component={MainTabs}/>
+        {/* แท็บหลัก */}
+        <Stack.Screen name="Main" component={MainTabs} />
+
+        {/* 🔹 หน้าใหม่: ประวัตินักศึกษา */}
+        <Stack.Screen
+          name="History"
+          component={HistoryScreen}
+          options={{
+            headerShown: true,
+            title: 'ประวัตินักศึกษาที่เคยไม่ผ่าน',
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
