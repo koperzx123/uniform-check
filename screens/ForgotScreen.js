@@ -116,7 +116,7 @@ export default function ForgotScreen({ navigation }) {
       <View style={styles.centerWrap}>
         <BlurView intensity={Platform.OS === "ios" ? 42 : 28} tint="light" style={styles.card}>
           <Text style={styles.title}>Reset password</Text>
-          <Text style={styles.subtitle}>ป้อนอีเมลเพื่อรับลิงก์รีเซ็ตรหัสผ่าน</Text>
+          <Text style={styles.subtitle}>UTCC Uniform Validation</Text>
 
           <FuturisticInput
             placeholder="Email address"

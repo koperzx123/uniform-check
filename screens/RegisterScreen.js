@@ -25,7 +25,7 @@ export default function RegisterScreen({ navigation }) {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ---- แอนิเมชันดาว (ฟ้าใส) ----
+  // ---- แอนิเมชันดาว ----
   const starAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
@@ -37,19 +37,21 @@ export default function RegisterScreen({ navigation }) {
       })
     ).start();
   }, []);
+
   const stars = useMemo(() => {
     const count = 32;
     return Array.from({ length: count }).map((_, i) => ({
       key: `star-${i}`,
       x: Math.random() * width,
-      y: Math.random() * width, // พอประมาณให้ลอยทั่วจอ
+      y: Math.random() * width,
       size: Math.random() * 2 + 1.2,
     }));
   }, []);
 
-  // ---- สมัคร + เก็บชื่อ ----
+  // ---- สมัครสมาชิก ----
   async function onRegister() {
     if (loading) return;
+
     if (!fullName || !email || !password || !confirm) {
       Alert.alert("กรุณากรอกให้ครบ");
       return;
@@ -77,11 +79,10 @@ export default function RegisterScreen({ navigation }) {
       });
 
       if (error) {
-        // ถ้ายังไม่ได้สร้างฟังก์ชัน/เปิด pgcrypto จะได้ 42883
         if (String(error.code) === "42883") {
           Alert.alert(
             "ยังไม่ได้ตั้งค่าในฐานข้อมูล",
-            "โปรดรัน SQL: create extension pgcrypto; และสร้างฟังก์ชัน app_register ตามที่ส่งไว้ก่อนหน้านี้"
+            "โปรดรัน SQL: create extension pgcrypto; และสร้างฟังก์ชัน app_register ก่อน"
           );
           return;
         }
@@ -89,12 +90,8 @@ export default function RegisterScreen({ navigation }) {
       }
 
       const row = Array.isArray(data) ? data[0] : data;
-      const userId =
-        (row && (row.user_id || row.id)) ||
-        (typeof data === "string" ? data : null);
-
-      const displayName =
-        (row && (row.display_name || row.username)) || fullName.trim();
+      const userId = row?.user_id || row?.id || null;
+      const displayName = row?.display_name || row?.username || fullName.trim();
 
       if (!userId) {
         Alert.alert("สมัครไม่สำเร็จ", "ระบบไม่สามารถคืนค่าได้");
@@ -109,7 +106,7 @@ export default function RegisterScreen({ navigation }) {
       if (String(err.code) === "23505") {
         Alert.alert(
           "สมัครไม่สำเร็จ",
-          "อีเมลนี้ถูกใช้แล้ว ลองล็อกอินหรือตั้งรหัสผ่านใหม่",
+          "อีเมลนี้ถูกใช้แล้ว",
           [{ text: "ไปล็อกอิน", onPress: () => navigation.replace("Login") }]
         );
         return;
@@ -148,6 +145,7 @@ export default function RegisterScreen({ navigation }) {
           inputRange: [0, 0.5, 1],
           outputRange: [0.3, 0.9, 0.3],
         });
+
         return (
           <Animated.View
             key={s.key}
@@ -170,32 +168,39 @@ export default function RegisterScreen({ navigation }) {
       <View style={styles.centerWrap}>
         <BlurView intensity={Platform.OS === "ios" ? 42 : 28} tint="light" style={styles.card}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>ลงทะเบียนเพื่อใช้งาน UTCC Uniform Check</Text>
+          <Text style={styles.subtitle}> UTCC Uniform Validation</Text>
 
           <FuturisticInput
+            label="Full name"
             placeholder="Full name"
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
           />
+
           <FuturisticInput
+            label="Email address"
             placeholder="Email address"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
           />
+
           <FuturisticInput
+            label="Password"
             placeholder="Password"
+            secureTextEntry
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
           />
+
           <FuturisticInput
+            label="Confirm password"
             placeholder="Confirm password"
+            secureTextEntry
             value={confirm}
             onChangeText={setConfirm}
-            secureTextEntry
           />
 
           <TouchableOpacity
@@ -232,8 +237,10 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
-/** อินพุตโปร่งแสง */
-function FuturisticInput(props) {
+/* ============================
+   INPUT + LABEL VERSION
+============================ */
+function FuturisticInput({ label, ...props }) {
   const [focused, setFocused] = useState(false);
   const glow = useRef(new Animated.Value(0)).current;
 
@@ -250,13 +257,27 @@ function FuturisticInput(props) {
     inputRange: [0, 1],
     outputRange: ["rgba(3,105,161,0.18)", "rgba(56,189,248,0.9)"],
   });
+
   const backgroundColor = glow.interpolate({
     inputRange: [0, 1],
     outputRange: ["rgba(255,255,255,0.28)", "rgba(255,255,255,0.4)"],
   });
 
   return (
-    <View style={{ width: "100%", marginBottom: 14 }}>
+    <View style={{ width: "100%", marginBottom: 18 }}>
+      {label && (
+        <Text
+          style={{
+            color: "#0F172A",
+            fontWeight: "700",
+            marginBottom: 6,
+            marginLeft: 4,
+          }}
+        >
+          {label}
+        </Text>
+      )}
+
       <Animated.View style={[styles.inputWrap, { borderColor, backgroundColor }]}>
         <TextInput
           placeholderTextColor="rgba(15,23,42,0.45)"
@@ -266,17 +287,25 @@ function FuturisticInput(props) {
           onBlur={() => setFocused(false)}
         />
       </Animated.View>
+
       <Animated.View style={[styles.inputGlowLine, { opacity: glow }]} />
     </View>
   );
 }
 
+/* ============================
+   Email ตรวจสอบ
+============================ */
 function isValidEmail(e) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 }
 
+/* ============================
+   STYLES
+============================ */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#E0F7FF" },
+
   aurora: {
     position: "absolute",
     width: width * 1.2,
@@ -287,7 +316,9 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     backgroundColor: "#CFFAFE",
   },
+
   star: { position: "absolute", backgroundColor: "#CFFAFE" },
+
   centerWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
 
   card: {
@@ -308,7 +339,6 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     fontSize: 22,
     fontWeight: "800",
-    letterSpacing: 0.5,
     textAlign: "center",
   },
   subtitle: {
@@ -327,8 +357,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 10,
   },
-  input: { color: "#0F172A", paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  inputGlowLine: { height: 2, width: "100%", borderRadius: 2, backgroundColor: "#67E8F9" },
+
+  input: {
+    color: "#0F172A",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+
+  inputGlowLine: {
+    height: 2,
+    width: "100%",
+    borderRadius: 2,
+    backgroundColor: "#67E8F9",
+  },
 
   btnShadow: {
     borderRadius: 14,
@@ -340,10 +382,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+
   button: { paddingVertical: 14, borderRadius: 14, alignItems: "center" },
+
   btnText: { color: "#0F172A", fontWeight: "800", letterSpacing: 1 },
 
   backLink: { alignItems: "center", marginTop: 12 },
+
   linkText: { color: "#0369A1", fontWeight: "700" },
 
   underGlow: {

@@ -1,4 +1,5 @@
 // screens/CheckScreen.js
+import { useRoute } from "@react-navigation/native";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
@@ -18,7 +19,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"; // 👈 เ�
 import { WebView } from "react-native-webview";
 import { supabase } from "../config/SupabaseClient";
 
+
+
+
 export default function CheckScreen({ navigation }) {
+  const route = useRoute();
+    useEffect(() => {
+    if (route.params?.captured) {
+    handlePickedAsset(route.params.captured);  
+  }
+    }, [route.params?.captured]);
+
   const [html, setHtml] = useState(null);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -38,28 +49,28 @@ export default function CheckScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const GENDER_BASE =
-    "https://teachablemachine.withgoogle.com/models/mFYOSspYr/";
+    "https://teachablemachine.withgoogle.com/models/vSbVcHv4M/";
   const OUTER_F_BASE =
-    "https://teachablemachine.withgoogle.com/models/B3q_-YwXk/";
+    "https://teachablemachine.withgoogle.com/models/d3qJLw2ge/";
   const OUTER_M_BASE =
-    "https://teachablemachine.withgoogle.com/models/W4_GxQh8I/";
+    "https://teachablemachine.withgoogle.com/models/TweF_4R2d/";
   const TIE_M_BASE =
-    "https://teachablemachine.withgoogle.com/models/lHEttVoQ_/";
+    "https://teachablemachine.withgoogle.com/models/jYgO-3LBT/";
   const BELT_M_BASE =
-    "https://teachablemachine.withgoogle.com/models/QwglYp99n/";
+    "https://teachablemachine.withgoogle.com/models/LIThKDOeA/";
   const BELT_F_BASE =
-    "https://teachablemachine.withgoogle.com/models/BoL3rWSWX/";
+    "https://teachablemachine.withgoogle.com/models/SLMSSOv2C/";
   const PIN_F_BASE =
-    "https://teachablemachine.withgoogle.com/models/zfYzwSvRc/";
+    "https://teachablemachine.withgoogle.com/models/4BUE-uiFN/";
   const EAR_F_BASE =
-    "https://teachablemachine.withgoogle.com/models/PRcoaeRwJ/";
+    "https://teachablemachine.withgoogle.com/models/qCdijvZ2w/";
   const BTN_F_BASE =
-    "https://teachablemachine.withgoogle.com/models/iVj_HIvXI/";
+    "https://teachablemachine.withgoogle.com/models/VI6pL07Pc/";
 
   const SHOE_F_BASE =
-    "https://teachablemachine.withgoogle.com/models/2lWg58D9U/";
+    "https://teachablemachine.withgoogle.com/models/mHyvFbP1h/";
   const SHOE_M_BASE =
-    "https://teachablemachine.withgoogle.com/models/PrRQBHdTz/";
+    "https://teachablemachine.withgoogle.com/models/mHyvFbP1h/";
 
   // เตรียม inspector_id ครั้งแรก
   useEffect(() => {
@@ -228,7 +239,9 @@ export default function CheckScreen({ navigation }) {
     if (!uri) return null;
     try {
       // Create filename
-      const filename = `fail_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+      const filename = `fail_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(7)}.jpg`;
 
       // Use fetch to get ArrayBuffer directly (bypassing FileSystem deprecation)
       const response = await fetch(uri);
@@ -349,7 +362,7 @@ export default function CheckScreen({ navigation }) {
                 setBusy(false);
                 Alert.alert("โมเดลมีปัญหา", msg.message || "ไม่ทราบสาเหตุ");
               }
-            } catch { }
+            } catch {}
           }}
         />
       ) : (
@@ -370,11 +383,12 @@ export default function CheckScreen({ navigation }) {
       >
         <View style={styles.actionRow}>
           <TouchableOpacity
-            onPress={openCamera}
+            onPress={() => navigation.navigate("CameraCapture")}
             style={styles.pickBtn}
             disabled={busy}
             activeOpacity={0.9}
           >
+
             {busy ? (
               <ActivityIndicator color="#0F172A" />
             ) : (
@@ -412,7 +426,6 @@ export default function CheckScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* สรุปผล */}
         {/* สรุปผล (เลื่อนขึ้น-ลงได้กันข้อความล่างโดนตัด) */}
         <ScrollView
           style={styles.summaryScroll}
@@ -509,11 +522,10 @@ export default function CheckScreen({ navigation }) {
               style={styles.saveBtn}
               onPress={() => setShowSave(true)}
             >
-              <Text style={styles.saveText}>บันทึกชุดผิดระเบียบ</Text>
+              <Text style={styles.saveText}>บันทึกการแต่งกายผิดระเบียบ</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
-
       </View>
 
       {/* Modal กรอกรหัสนักศึกษา */}
@@ -525,7 +537,7 @@ export default function CheckScreen({ navigation }) {
       >
         <View style={styles.modalWrap}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>บันทึกชุดผิดระเบียบ</Text>
+            <Text style={styles.modalTitle}>บันทึกการแต่งกายผิดระเบียบ</Text>
 
             <Text style={styles.modalLabel}>รหัสนักศึกษา</Text>
             <TextInput
@@ -694,6 +706,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 16,
   },
+
+  summaryScroll: {
+    maxHeight: 260,
+  },
 });
 
 /* ---------- HTML ฝั่ง WebView ---------- */
@@ -755,7 +771,8 @@ function buildPredictorHtml(bases) {
   <script>
     var BASES = ${JSON.stringify(bases)};
 
-    function join(b,p){ return (b||'').replace(/\\/+$/,'') + '/' + (p||'').replace(/^\\/+/,''); }
+    function join(b,p){ return (b||'').replace(/\\/+$/,'') + '/' + (p||'').replace(/^\\/+/
+,''); }
     function loadScript(src){
       return new Promise(function(res,rej){
         var s=document.createElement('script');
@@ -822,12 +839,38 @@ function buildPredictorHtml(bases) {
       return models[key];
     }
 
+    // ====== แกนหลัก: ตัดรูปเป็น full / upper / lower แล้วส่งเข้าโมเดล ======
     async function pipeline(img){
       try{
         await ensureLibs();
 
+        // เตรียม canvas ครึ่งบน / ครึ่งล่าง
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        var half = Math.floor(h / 2);
+
+        // ครึ่งบน
+        var upperCanvas = document.createElement("canvas");
+        upperCanvas.width = w;
+        upperCanvas.height = half;
+        var uctx = upperCanvas.getContext("2d");
+        uctx.drawImage(img, 0, 0, w, half, 0, 0, w, half);
+
+        // ครึ่งล่าง
+        var lowerCanvas = document.createElement("canvas");
+        lowerCanvas.width = w;
+        lowerCanvas.height = h - half;
+        var lctx = lowerCanvas.getContext("2d");
+        lctx.drawImage(img, 0, half, w, h - half, 0, 0, w, h - half);
+
+        // full = ใช้ img เดิม
+        var fullInput = img;           // ใช้กับ: gender, outer
+        var upperInput = upperCanvas;  // ใช้กับ: tie, pin, ear, btn
+        var lowerInput = lowerCanvas;  // ใช้กับ: belt, shoe
+
+        // ===== 1) ทำนายเพศก่อน ด้วยรูปเต็ม =====
         var mGender = await loadModel("genderBase");
-        var g = await topPred(mGender, img);
+        var g = await topPred(mGender, fullInput);
         var isMale = containsAny(g.className, ["male","man","ชาย","boy"]);
         var gender = isMale ? "male" : "female";
         var genderTH = isMale ? "ชาย" : "หญิง";
@@ -837,26 +880,33 @@ function buildPredictorHtml(bases) {
 
         if(isMale){
           // ===== ชาย =====
-          const outerPred = await topPred(await loadModel("outerMBase"), img);
+
+          // 2) outer (ชุดนักศึกษา / ชุดนอก) → รูปเต็ม
+          const outerPred = await topPred(await loadModel("outerMBase"), fullInput);
           const out = evalOuter(outerPred);
           detail.outer = { label: out.label, prob: out.prob, pass: out.pass };
           if (out.shouldStop) {
             passAll = false;
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type:"result", gender, genderTH, detail, passAll }));
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type:"result", gender, genderTH, detail, passAll
+            }));
             return;
           }
 
-          const t = await topPred(await loadModel("tieMBase"),  img);
-          const b = await topPred(await loadModel("beltMBase"), img);
-          const s = await topPred(await loadModel("shoeMBase"), img);
+          // 3) เนคไท (ครึ่งบน)
+          const t = await topPred(await loadModel("tieMBase"),  upperInput);
+          // 4) เข็มขัด (ครึ่งล่าง)
+          const b = await topPred(await loadModel("beltMBase"), lowerInput);
+          // 5) รองเท้า (ครึ่งล่าง)
+          const s = await topPred(await loadModel("shoeMBase"), lowerInput);
 
           const passTie  = passIfHas(t.className,
             ["tie","necktie","มีเนคไท","เนคไทชาย"],
             ["no_tie","notie","ไม่มีเนคไท","ไม่มีเนคไทชาย","ไม่มี"]
           );
           const passBelt = passIfHas(b.className,
-            ["belt","withbelt","เข็มขัด","ใส่เข็มขัด"],
-            ["no_belt","nobelt","ไม่มีเข็มขัด","ไม่ใส่เข็มขัด","ไม่มี"]
+            ["belt","withbelt","เข็มขัดชาย","ใส่เข็มขัด"],
+            ["no_belt","nobelt","ไม่มีเข็มขัดชาย","ไม่ใส่เข็มขัด","ไม่มี"]
           );
           const passShoe = passIfHas(s.className,
             ["รองเท้าชายถูก","รองเท้าถูกระเบียบ","ถูกระเบียบ","correct"],
@@ -871,20 +921,29 @@ function buildPredictorHtml(bases) {
 
         } else {
           // ===== หญิง =====
-          const outerPredF = await topPred(await loadModel("outerFBase"), img);
+
+          // 2) outer (ชุดนักศึกษา / ชุดนอก) → รูปเต็ม
+          const outerPredF = await topPred(await loadModel("outerFBase"), fullInput);
           const outF = evalOuter(outerPredF);
           detail.outer = { label: outF.label, prob: outF.prob, pass: outF.pass };
           if (outF.shouldStop) {
             passAll = false;
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type:"result", gender, genderTH, detail, passAll }));
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type:"result", gender, genderTH, detail, passAll
+            }));
             return;
           }
 
-          const bf = await topPred(await loadModel("beltFBase"), img);
-          const p  = await topPred(await loadModel("pinFBase"),  img);
-          const e  = await topPred(await loadModel("earFBase"),  img);
-          const bt = await topPred(await loadModel("btnFBase"),  img);
-          const sf = await topPred(await loadModel("shoeFBase"), img);
+          // 3) เข็มขัด (ครึ่งล่าง)
+          const bf = await topPred(await loadModel("beltFBase"), lowerInput);
+          // 4) เข็มกลัด (ครึ่งบน)
+          const p  = await topPred(await loadModel("pinFBase"),  upperInput);
+          // 5) ต่างหู (ครึ่งบน)
+          const e  = await topPred(await loadModel("earFBase"),  upperInput);
+          // 6) กระดุม (ครึ่งบน)
+          const bt = await topPred(await loadModel("btnFBase"),  upperInput);
+          // 7) รองเท้า (ครึ่งล่าง)
+          const sf = await topPred(await loadModel("shoeFBase"), lowerInput);
 
           const passBeltF = passIfHas(bf.className,
             ["belt","withbelt","เข็มขัดหญิง","ใส่เข็มขัด"],
@@ -895,8 +954,8 @@ function buildPredictorHtml(bases) {
             ["no_pin","nopin","ไม่มีเข็มกลัด","ไม่ติดเข็มกลัด","ไม่มี"]
           );
           const passEar   = passIfHas(e.className,
-            ["earring","ต่างหู","ตุ้งติ้ง","มีต่างหู","ใส่ต่างหู"],
-            ["no_earring","noearring","ไม่มีต่างหู","ไม่ใส่ต่างหู","ไม่มี"]
+            ["earring","มีตุ้งติ้ง","มีต่างหู","ใส่ต่างหู"],
+            ["no_earring","noearring","ไม่มีตุ้งติ้ง","ไม่มี"]
           );
           const passBtn   = passIfHas(bt.className,
             ["button","กระดุม","มีกระดุม","ติดกระดุม"],
@@ -916,9 +975,13 @@ function buildPredictorHtml(bases) {
           passAll = (outF.pass && passBeltF && passPin && passEar && passBtn && passShoeF);
         }
 
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type:"result", gender, genderTH, detail, passAll }));
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type:"result", gender, genderTH, detail, passAll
+        }));
       }catch(err){
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type:"error", message: err && err.message }));
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type:"error", message: err && err.message
+        }));
       }
     }
 

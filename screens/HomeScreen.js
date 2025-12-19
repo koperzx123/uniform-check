@@ -26,39 +26,38 @@ export default function HomeScreen({ navigation }) {
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>UTCC • Uniform Check</Text>
-          <Text style={styles.subtitle}>ระบบตรวจสอบชุดนักศึกษา ✦</Text>
+          <Text style={styles.title}>✦ Uniform Validation ✦</Text>
         </View>
 
         {/* ปุ่มต่างๆ */}
         <View style={styles.cardGrid}>
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => navigation.navigate("เช็คชุดนักศึกษา")}
+            onPress={() => navigation.navigate("Verify Unform")}
           >
             <BlurView intensity={30} tint="dark" style={styles.card}>
               <Ionicons name="shirt-outline" size={44} color="#38BDF8" />
-              <Text style={styles.cardText}>เช็คเครื่องแต่งกาย</Text>
+              <Text style={styles.cardText}>Verify Unform</Text>
             </BlurView>
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => navigation.navigate("ระเบียบการแต่งกาย")}
+            onPress={() => navigation.navigate("Dress Code Regulations")}
           >
             <BlurView intensity={30} tint="dark" style={styles.card}>
               <Ionicons name="book-outline" size={44} color="#60A5FA" />
-              <Text style={styles.cardText}>อ่านระเบียบ</Text>
+              <Text style={styles.cardText}>Dress Code Regulations</Text>
             </BlurView>
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => navigation.navigate("โปรไฟล์")}
+            onPress={() => navigation.navigate("Profile")}
           >
             <BlurView intensity={30} tint="dark" style={styles.card}>
               <Ionicons name="person-outline" size={44} color="#7DD3FC" />
-              <Text style={styles.cardText}>โปรไฟล์ผู้ใช้</Text>
+              <Text style={styles.cardText}>profile</Text>
             </BlurView>
           </TouchableOpacity>
         </View>

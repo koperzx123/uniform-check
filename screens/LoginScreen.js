@@ -1,6 +1,7 @@
 // screens/LoginScreen.js
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import * as SecureStore from "expo-secure-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -59,39 +60,75 @@ export default function LoginScreen({ navigation }) {
       })
     ).start();
   }, []);
+
   const shimmerTranslate = waterAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [-width * 0.6, width * 0.6],
   });
 
-  // ==== Extract User ====
+  // ================================
+  // Extract RPC return
+  // ================================
   function extractUser(data) {
     const row = Array.isArray(data) ? data[0] : data;
     if (!row) return null;
-    if (typeof row === "object") {
-      const id = row.id || row.user_id || null;
-      const username = row.username || row.email || null;
-      return id ? { id, username } : null;
-    }
-    if (typeof row === "string") {
-      return { id: row, username: email.trim() };
-    }
-    return null;
+
+    const id = row.id || row.user_id || null;
+    const username = row.username || row.email || email.trim();
+
+    return id ? { id, username } : null;
   }
 
+  // ================================
+  // LOGIN
+  // ================================
   async function onLogin() {
     if (!email || !password) return alert("กรุณากรอกอีเมลและรหัสผ่าน");
+
     try {
       setLoading(true);
+
+      console.log("🚀 Sending RPC login...");
       const { data, error } = await supabase.rpc("app_login", {
         p_username: email.trim(),
         p_password: password,
       });
-      if (error) return alert(error.message || "ล็อกอินไม่สำเร็จ");
+
+      console.log("🔍 RPC RESULT =", data);
+
+      if (error) {
+        console.log("❌ RPC ERROR =", error);
+        return alert("ล็อกอินไม่สำเร็จ");
+      }
+
       const user = extractUser(data);
       if (!user?.id) return alert("ไม่พบผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
-      setAppUserId(user.id);
+
+      console.log("👤 USER ID =", user.id);
+
+      // ⭐ บันทึก user_id ลงเครื่อง + ตรวจสอบ
+      try {
+        await SecureStore.setItemAsync("user_id", user.id.toString());
+        const test = await SecureStore.getItemAsync("user_id");
+
+        console.log("🔥 TEST STORE =", test);
+
+        if (!test) {
+          alert("SecureStore ไม่สามารถบันทึก user id ได้!");
+          return;
+        }
+      } catch (err) {
+        console.log("❌ SecureStore error", err);
+        alert("เกิดข้อผิดพลาดในการบันทึก user id");
+        return;
+      }
+
+      // ⭐ ใส่ userId ให้ Supabase header
+      setAppUserId(user.id.toString());
+
+      console.log("➡️ Navigating to Main...");
       navigation.replace("Main");
+
     } catch (e) {
       alert(e?.message || "เกิดข้อผิดพลาดขณะล็อกอิน");
     } finally {
@@ -99,9 +136,11 @@ export default function LoginScreen({ navigation }) {
     }
   }
 
+  // ================================
+  // UI
+  // ================================
   return (
     <View style={styles.container}>
-      {/* พื้นหลังฟ้าใส */}
       <LinearGradient
         colors={["#E0F7FF", "#BAE6FD", "#A5F3FC"]}
         start={{ x: 0.1, y: 0 }}
@@ -145,8 +184,8 @@ export default function LoginScreen({ navigation }) {
         );
       })}
 
+      {/* LOGO */}
       <View style={styles.centerWrap}>
-        {/* โลโก้ (ลบกรอบขาว + ขยายใหญ่ขึ้น) */}
         <View style={styles.logoContainer}>
           <LinearGradient
             colors={["rgba(165,243,252,0.45)", "rgba(186,230,253,0.15)", "transparent"]}
@@ -161,9 +200,11 @@ export default function LoginScreen({ navigation }) {
           />
         </View>
 
-        {/* การ์ดโปร่งแสงเหมือนน้ำ */}
-        <BlurView intensity={Platform.OS === "ios" ? 42 : 28} tint="light" style={styles.card}>
-          {/* shimmer น้ำ */}
+        <BlurView
+          intensity={Platform.OS === "ios" ? 42 : 28}
+          tint="light"
+          style={styles.card}
+        >
           <Animated.View
             pointerEvents="none"
             style={[
@@ -174,33 +215,31 @@ export default function LoginScreen({ navigation }) {
             ]}
           >
             <LinearGradient
-              colors={[
-                "rgba(255,255,255,0.00)",
-                "rgba(255,255,255,0.25)",
-                "rgba(255,255,255,0.00)",
-              ]}
+              colors={["transparent", "rgba(255,255,255,0.25)", "transparent"]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={{ flex: 1 }}
             />
           </Animated.View>
 
-          {/* Title */}
-          <Text style={styles.title}>UTCC • </Text>
-          <Text style={styles.subtitle}>uniform-check</Text>
+          <Text style={styles.title}>UTCC •</Text>
+          <Text style={styles.subtitle}>Uniform Validation</Text>
 
           <FuturisticInput
+            label="Email address"
             placeholder="Email address"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
           />
+
           <FuturisticInput
+            label="Password"
             placeholder="Password"
+            secureTextEntry
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
           />
 
           <TouchableOpacity
@@ -218,11 +257,12 @@ export default function LoginScreen({ navigation }) {
               {loading ? (
                 <ActivityIndicator color="#0F172A" />
               ) : (
-                <Text style={styles.btnText}>ENTER THE UTCC CHECK</Text>
+                <Text style={styles.btnText}>ENTER THE Uniform Validation</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
 
+          {/* Links */}
           <View style={styles.row}>
             <TouchableOpacity onPress={() => navigation.navigate("Register")}>
               <Text style={styles.link}>Register</Text>
@@ -238,10 +278,13 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-/** อินพุตสไตล์นีออน (ฟ้าใส) */
-function FuturisticInput(props) {
+/* ============================
+   Futuristic Input
+============================ */
+function FuturisticInput({ label, ...props }) {
   const [focused, setFocused] = useState(false);
   const glow = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     Animated.timing(glow, {
       toValue: focused ? 1 : 0,
@@ -250,16 +293,23 @@ function FuturisticInput(props) {
       useNativeDriver: false,
     }).start();
   }, [focused]);
+
   const borderColor = glow.interpolate({
     inputRange: [0, 1],
     outputRange: ["rgba(3,105,161,0.18)", "rgba(56,189,248,0.9)"],
   });
+
   const backgroundColor = glow.interpolate({
     inputRange: [0, 1],
     outputRange: ["rgba(255,255,255,0.28)", "rgba(255,255,255,0.4)"],
   });
+
   return (
-    <View style={{ width: "100%", marginBottom: 14 }}>
+    <View style={{ width: "100%", marginBottom: 16 }}>
+      <Text style={{ color: "#0F172A", fontWeight: "700", marginBottom: 6, marginLeft: 4 }}>
+        {label}
+      </Text>
+
       <Animated.View style={[styles.inputWrap, { borderColor, backgroundColor }]}>
         <TextInput
           placeholderTextColor="rgba(15,23,42,0.45)"
@@ -269,11 +319,15 @@ function FuturisticInput(props) {
           {...props}
         />
       </Animated.View>
+
       <Animated.View style={[styles.inputGlowLine, { opacity: glow }]} />
     </View>
   );
 }
 
+/* ============================
+   Styles
+============================ */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#E0F7FF" },
 
@@ -298,12 +352,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
 
-  // ===== โลโก้ใหม่ =====
-  logoContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
+  logoContainer: { alignItems: "center", marginBottom: 20 },
   logoAura: {
     position: "absolute",
     width: 260,
@@ -311,12 +360,8 @@ const styles = StyleSheet.create({
     borderRadius: 130,
     opacity: 0.45,
   },
-  logo: {
-    width: 210,
-    height: 210,
-  },
+  logo: { width: 210, height: 210 },
 
-  // ===== การ์ดโปร่งแสง =====
   card: {
     width: "95%",
     borderRadius: 28,
@@ -325,12 +370,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(147,197,253,0.55)",
     backgroundColor: "rgba(255,255,255,0.26)",
-    overflow: "hidden",
-    shadowColor: "#7DD3FC",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    alignSelf: "center",
   },
 
   waterShimmer: {
@@ -358,46 +397,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.32)",
-    borderColor: "#7DD3FC",
   },
+
   input: {
     color: "#0F172A",
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
   },
-  inputGlowLine: {
-    height: 2,
-    width: "100%",
-    borderRadius: 2,
-    backgroundColor: "#67E8F9",
-  },
 
-  btnShadow: {
-    borderRadius: 14,
-    overflow: "hidden",
-    marginTop: 10,
-    shadowColor: "#38BDF8",
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-  },
-  button: {
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  btnText: {
-    color: "#0F172A",
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
+  inputGlowLine: { height: 2, backgroundColor: "#67E8F9", borderRadius: 2 },
 
-  row: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
-    marginTop: 18,
-  },
+  btnShadow: { marginTop: 10, borderRadius: 14 },
+  button: { paddingVertical: 14, borderRadius: 14, alignItems: "center" },
+  btnText: { color: "#0F172A", fontWeight: "800" },
+
+  row: { flexDirection: "row", justifyContent: "center", marginTop: 18, gap: 10 },
   link: { color: "#0369A1", fontWeight: "700" },
   dot: { color: "rgba(15,23,42,0.4)" },
 });

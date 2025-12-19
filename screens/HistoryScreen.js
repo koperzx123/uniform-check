@@ -98,7 +98,7 @@ export default function HistoryScreen({ navigation }) {
       />
 
       <View style={styles.header}>
-        <Text style={styles.title}>ประวัตินักศึกษาที่เคยไม่ผ่าน</Text>
+        <Text style={styles.title}>ประวัตินักศึกษาที่ไม่ผ่าน</Text>
         <Text style={styles.subtitle}>
           เลือกวันที่ เพื่อดูประวัติการแต่งกายที่ไม่ถูกระเบียบ
         </Text>

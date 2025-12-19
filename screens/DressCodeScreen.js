@@ -34,7 +34,7 @@ export default function DressCodeScreen() {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.title}>ระเบียบการแต่งกายนักศึกษา</Text>
+        <Text style={s.title}>Dress Code Regulations</Text>
 
         {/* รูปคู่เต็มจอ */}
         <View style={s.fullImgWrap}>

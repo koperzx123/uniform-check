@@ -1,9 +1,13 @@
 // screens/ProfileScreen.js
 import { Ionicons } from "@expo/vector-icons";
+import { Buffer } from "buffer";
+import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
+import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Modal,
   StyleSheet,
   Text,
@@ -14,161 +18,335 @@ import {
 import { setAppUserId, supabase } from "../config/SupabaseClient";
 
 export default function ProfileScreen({ navigation }) {
-  const [email, setEmail] = useState("-");          // = username จากตาราง
+  const [userId, setUserId] = useState(null);
+  const [email, setEmail] = useState("-");
   const [displayName, setDisplayName] = useState("-");
+  const [profileUrl, setProfileUrl] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+
+  // MODALS + STATE
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [passModal, setPassModal] = useState(false);
+  const [oldPass, setOldPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [savingPass, setSavingPass] = useState(false);
+
+  const [uploading, setUploading] = useState(false);
+
+  // ============================================================
+  // LOAD USER PROFILE
+  // ============================================================
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
 
-        // 1) พยายามใช้ RPC ที่คืนโปรไฟล์ปัจจุบันก่อน (อิง RLS/x-user-id)
-        let row = null;
-        try {
-          const { data, error } = await supabase.rpc("app_me");
-          if (!error && data) row = Array.isArray(data) ? data[0] : data;
-        } catch (_e) {}
+        // ดึง user_id จาก SecureStore → เพราะคุณไม่ใช้ Supabase Auth
+        const storedId = await SecureStore.getItemAsync("user_id");
+        console.log("📌 Using stored userId =", storedId);
 
-        // 2) ถ้าไม่มี RPC → fallback select โดยอาศัย RLS (จำกัดผู้ใช้ปัจจุบัน)
-        if (!row) {
-          const { data, error } = await supabase
-            .from("app_users")
-            .select("username, display_name")
-            .limit(1)
-            .maybeSingle();
-          if (!error) row = data || null;
+        if (!storedId) {
+          alert("ไม่พบข้อมูลผู้ใช้ในเครื่อง");
+          return;
         }
 
-        const username = row?.username || "-";
-        const dn = row?.display_name || row?.username || "-";
+        // เรียก RPC app_me(user_id)
+        const { data, error } = await supabase.rpc("app_me", {
+          user_id: storedId,
+        });
 
-        setEmail(username);        // อีเมล = username
-        setDisplayName(dn);
+        console.log("RPC RESULT =", data);
+
+        if (error || !data || data.length === 0) {
+          alert("โหลดข้อมูลผู้ใช้ล้มเหลว");
+          return;
+        }
+
+        const user = data[0];
+
+        setUserId(user.id);
+        setEmail(user.username);
+        setDisplayName(user.display_name || user.username);
+        setProfileUrl(user.profile_url);
+
+        // สำคัญมากสำหรับ Storage (RLS)
+        setAppUserId(user.id);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  function openEdit() {
-    setNameDraft(displayName === "-" ? "" : displayName);
-    setEditing(true);
-  }
-
+  // ============================================================
+  // UPDATE NAME
+  // ============================================================
   async function saveName() {
-    const newName = (nameDraft || "").trim();
-    if (!newName) return alert("กรุณากรอกชื่อ");
+    if (!nameDraft.trim()) return alert("กรุณากรอกชื่อ");
 
     try {
       setSaving(true);
 
-      // 1) ใช้ RPC ตั้งชื่อถ้ามี
-      let ok = false;
-      try {
-        const { error } = await supabase.rpc("app_set_display_name", {
-          p_display_name: newName,
-        });
-        if (!error) ok = true;
-      } catch (_e) {}
+      const { error } = await supabase
+        .from("app_users")
+        .update({ display_name: nameDraft.trim() })
+        .eq("id", userId);
 
-      // 2) ไม่มี RPC → อัปเดตตรง (ภายใต้ RLS)
-      if (!ok) {
-        const { error } = await supabase
-          .from("app_users")
-          .update({ display_name: newName })
-          .select("display_name")
-          .maybeSingle();
-        if (error) throw error;
-      }
+      if (error) return alert("อัปเดตชื่อไม่สำเร็จ");
 
-      setDisplayName(newName);
+      setDisplayName(nameDraft.trim());
       setEditing(false);
-    } catch (e) {
-      alert(e?.message || "บันทึกชื่อไม่สำเร็จ");
     } finally {
       setSaving(false);
     }
   }
 
-  async function onLogout() {
-    // เคลียร์ทั้ง custom header + Supabase Auth (ถ้ามีใช้)
-    try { setAppUserId(null); } catch {}
-    try { await supabase.auth.signOut(); } catch {}
+  // ============================================================
+  // CHANGE PASSWORD
+  // ============================================================
+  async function changePassword() {
+    if (!oldPass.trim() || !newPass.trim() || !confirmPass.trim()) {
+      return alert("กรุณากรอกข้อมูลให้ครบ");
+    }
+
+    if (newPass !== confirmPass) {
+      return alert("รหัสใหม่ไม่ตรงกัน");
+    }
+
+    try {
+      setSavingPass(true);
+
+      const { data, error } = await supabase.rpc("change_password_bcrypt", {
+        p_user_id: userId,
+        p_old_password: oldPass,
+        p_new_password: newPass,
+      });
+
+      if (error) {
+        return alert("แก้ไขรหัสผ่านล้มเหลว");
+      }
+
+      if (data === "WRONG_PASSWORD") return alert("รหัสเดิมไม่ถูกต้อง");
+      if (data !== "OK") return alert("อัปเดตรหัสผ่านล้มเหลว");
+
+      alert("เปลี่ยนรหัสผ่านสำเร็จ!");
+      setPassModal(false);
+      setOldPass("");
+      setNewPass("");
+      setConfirmPass("");
+    } finally {
+      setSavingPass(false);
+    }
+  }
+
+  // ============================================================
+  // UPLOAD PROFILE IMAGE
+  // ============================================================
+  async function pickProfileImage() {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return alert("ต้องอนุญาตเข้าถึงคลังภาพ");
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images",
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      const ext = asset.uri.split(".").pop();
+      const fileName = `${userId}_profile_${Date.now()}.${ext}`;
+
+      const fileBytes = Buffer.from(asset.base64, "base64");
+
+      setUploading(true);
+
+      const { error } = await supabase.storage
+        .from("profile_pics")
+        .upload(fileName, fileBytes, {
+          contentType: `image/${ext}`,
+          upsert: true,
+        });
+
+      if (error) {
+        console.log(error);
+        return alert("อัปโหลดรูปไม่สำเร็จ");
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("profile_pics")
+        .getPublicUrl(fileName);
+
+      await supabase
+        .from("app_users")
+        .update({ profile_url: urlData.publicUrl })
+        .eq("id", userId);
+
+      setProfileUrl(urlData.publicUrl);
+      alert("อัปเดตรูปโปรไฟล์สำเร็จ!");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+  function onLogout() {
+    setAppUserId(null);
     navigation.replace("Login");
   }
 
+  // ============================================================
+  // UI
+  // ============================================================
   return (
     <View style={s.container}>
-      {/* พื้นหลังฟ้าใสให้เข้าธีม Login/Register */}
       <LinearGradient
         colors={["#E0F7FF", "#BAE6FD", "#A5F3FC"]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
       <View style={s.card}>
-        <Ionicons name="person-circle" size={96} color="#38BDF8" />
+        {/* PROFILE IMAGE */}
+        <TouchableOpacity onPress={pickProfileImage} style={s.profileWrapper}>
+          {profileUrl ? (
+            <Image source={{ uri: profileUrl }} style={s.profileImg} />
+          ) : (
+            <Ionicons name="person-circle" size={110} color="#38BDF8" />
+          )}
 
+          {uploading && (
+            <ActivityIndicator color="#0F172A" style={{ position: "absolute" }} />
+          )}
+        </TouchableOpacity>
+
+        {/* PROFILE CONTENT */}
         {loading ? (
-          <ActivityIndicator style={{ marginTop: 12 }} />
+          <ActivityIndicator color="#0F172A" />
         ) : (
           <>
-            {/* ชื่อ (แก้ได้) */}
+            {/* NAME */}
             <View style={s.nameRow}>
-              <Text style={s.nameText} numberOfLines={1}>
-                {displayName}
-              </Text>
-              <TouchableOpacity onPress={openEdit} style={s.nameEditBtn} activeOpacity={0.9}>
+              <Text style={s.nameText}>{displayName}</Text>
+
+              <TouchableOpacity
+                style={s.nameEditBtn}
+                onPress={() => {
+                  setNameDraft(displayName);
+                  setEditing(true);
+                }}
+              >
                 <Ionicons name="pencil" size={16} color="#0F172A" />
                 <Text style={s.nameEditTxt}>Edit</Text>
               </TouchableOpacity>
             </View>
 
-            {/* อีเมล = username (อ่านอย่างเดียว) */}
-            <Text style={s.emailLabel}>Email </Text>
+            {/* EMAIL */}
+            <Text style={s.emailLabel}>Email</Text>
             <View style={s.emailBox}>
               <Ionicons name="mail-outline" size={16} color="#0F172A" />
-              <Text style={s.emailText} numberOfLines={1}>
-                {email}
-              </Text>
+              <Text style={s.emailText}>{email}</Text>
             </View>
+
+            {/* PASSWORD */}
+            <TouchableOpacity style={s.passBtn} onPress={() => setPassModal(true)}>
+              <Text style={s.passBtnTxt}>Change Password</Text>
+            </TouchableOpacity>
           </>
         )}
 
-        <TouchableOpacity style={s.logout} activeOpacity={0.9} onPress={onLogout}>
+        {/* LOGOUT */}
+        <TouchableOpacity style={s.logout} onPress={onLogout}>
           <Text style={s.logoutText}>Log out</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Modal แก้ไขชื่อ */}
-      <Modal visible={editing} transparent animationType="fade" onRequestClose={() => setEditing(false)}>
+      {/* EDIT NAME MODAL */}
+      <Modal visible={editing} transparent animationType="fade">
         <View style={s.modalWrap}>
           <View style={s.modalCard}>
-            <Text style={s.modalTitle}>แก้ไขชื่อแสดง</Text>
+            <Text style={s.modalTitle}>Edit Display Name</Text>
+
             <TextInput
               value={nameDraft}
               onChangeText={setNameDraft}
-              placeholder="ชื่อ-นามสกุล"
-              placeholderTextColor="rgba(15,23,42,0.45)"
+              placeholder="Enter name"
               style={s.modalInput}
-              autoCapitalize="words"
             />
-            <View style={{ height: 10 }} />
-            <View style={{ flexDirection: "row", gap: 10 }}>
+
+            <View style={s.modalRow}>
               <TouchableOpacity
-                style={[s.modalBtn, { flex: 1, backgroundColor: "#E2F3FF", borderColor: "rgba(56,189,248,0.35)" }]}
+                style={[s.modalBtn, s.cancelBtn]}
                 onPress={() => setEditing(false)}
-                disabled={saving}
               >
-                <Text style={[s.modalBtnText, { color: "#0F172A" }]}>ยกเลิก</Text>
+                <Text style={s.modalBtnCancelTxt}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, { flex: 1 }]} onPress={saveName} disabled={saving}>
-                {saving ? <ActivityIndicator color="#0F172A" /> : <Text style={s.modalBtnText}>บันทึก</Text>}
+
+              <TouchableOpacity style={s.modalBtn} onPress={saveName}>
+                {saving ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text style={s.modalBtnTxt}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* CHANGE PASSWORD MODAL */}
+      <Modal visible={passModal} transparent animationType="fade">
+        <View style={s.modalWrap}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Change Password</Text>
+
+            <Text style={s.label}>Old Password</Text>
+            <TextInput
+              value={oldPass}
+              onChangeText={setOldPass}
+              secureTextEntry
+              style={s.modalInput}
+            />
+
+            <Text style={s.label}>New Password</Text>
+            <TextInput
+              value={newPass}
+              onChangeText={setNewPass}
+              secureTextEntry
+              style={s.modalInput}
+            />
+
+            <Text style={s.label}>Confirm New Password</Text>
+            <TextInput
+              value={confirmPass}
+              onChangeText={setConfirmPass}
+              secureTextEntry
+              style={s.modalInput}
+            />
+
+            <View style={s.modalRow}>
+              <TouchableOpacity
+                style={[s.modalBtn, s.cancelBtn]}
+                onPress={() => setPassModal(false)}
+              >
+                <Text style={s.modalBtnCancelTxt}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={s.modalBtn} onPress={changePassword}>
+                {savingPass ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text style={s.modalBtnTxt}>Save</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -178,125 +356,124 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
+// ============================================================
+// STYLES
+// ============================================================
 const s = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, alignItems: "center", justifyContent: "center" },
 
   card: {
     width: "90%",
-    backgroundColor: "rgba(255,255,255,0.28)", // glass ใส
+    padding: 26,
+    backgroundColor: "rgba(255,255,255,0.3)",
     borderRadius: 24,
     borderWidth: 1,
     borderColor: "rgba(147,197,253,0.55)",
-    alignItems: "stretch",
-    paddingVertical: 26,
-    paddingHorizontal: 18,
-    shadowColor: "#7DD3FC",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    gap: 16,
   },
 
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    justifyContent: "space-between",
+  profileWrapper: { alignSelf: "center", marginBottom: 18 },
+
+  profileImg: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 2,
+    borderColor: "#7DD3FC",
   },
-  nameText: {
-    color: "#0F172A",
-    fontSize: 22,
-    fontWeight: "800",
-    flex: 1,
-  },
+
+  nameRow: { flexDirection: "row", justifyContent: "space-between" },
+
+  nameText: { color: "#0F172A", fontSize: 24, fontWeight: "800" },
+
   nameEditBtn: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
     backgroundColor: "#BAE6FD",
-    borderWidth: 1,
-    borderColor: "rgba(56,189,248,0.35)",
-    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.35)",
+    alignItems: "center",
+    gap: 4,
   },
+
   nameEditTxt: { color: "#0F172A", fontWeight: "800", fontSize: 12 },
 
-  emailLabel: {
-    color: "rgba(15,23,42,0.65)",
-    fontSize: 12,
-    marginTop: -4,
-  },
+  emailLabel: { marginTop: 6, marginBottom: 4, color: "#0F172A" },
+
   emailBox: {
-    backgroundColor: "rgba(255,255,255,0.55)",
-    borderWidth: 1,
-    borderColor: "rgba(147,197,253,0.55)",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
     flexDirection: "row",
-    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderRadius: 12,
+    padding: 10,
     gap: 8,
   },
-  emailText: { color: "#0F172A", fontWeight: "700", flexShrink: 1 },
+
+  emailText: { color: "#0F172A", fontWeight: "700" },
+
+  passBtn: {
+    backgroundColor: "#A5F3FC",
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.4)",
+  },
+
+  passBtnTxt: { color: "#0F172A", fontWeight: "800" },
 
   logout: {
-    marginTop: 6,
     backgroundColor: "#FCA5A5",
     paddingVertical: 12,
     borderRadius: 12,
+    marginTop: 16,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.35)",
+    borderColor: "rgba(239,68,68,0.4)",
   },
+
   logoutText: { color: "#7A0A0A", fontWeight: "800" },
 
-  // Modal
   modalWrap: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.25)",
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
   },
+
   modalCard: {
     width: "86%",
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 18,
+    backgroundColor: "white",
     padding: 18,
-    borderWidth: 1,
-    borderColor: "rgba(147,197,253,0.6)",
-    shadowColor: "#7DD3FC",
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
+    borderRadius: 18,
   },
-  modalTitle: {
-    color: "#0F172A",
-    fontSize: 20,
-    fontWeight: "800",
-    marginBottom: 10,
-    textAlign: "center",
-  },
+
+  modalTitle: { fontSize: 20, fontWeight: "800", textAlign: "center" },
+
+  label: { marginTop: 10, marginBottom: 4, color: "#0F172A", fontWeight: "700" },
+
   modalInput: {
-    color: "#0F172A",
-    backgroundColor: "rgba(255,255,255,0.7)",
-    borderWidth: 1,
+    backgroundColor: "#FFF",
     borderColor: "#7DD3FC",
+    borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    padding: 10,
+    marginTop: 4,
   },
+
+  modalRow: { flexDirection: "row", gap: 12, marginTop: 12 },
+
   modalBtn: {
+    flex: 1,
     backgroundColor: "#38BDF8",
-    paddingVertical: 10,
+    padding: 10,
     alignItems: "center",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(56,189,248,0.35)",
   },
-  modalBtnText: {
-    color: "#0F172A",
-    fontWeight: "800",
-    fontSize: 16,
-  },
+
+  cancelBtn: { backgroundColor: "#E2F3FF" },
+
+  modalBtnTxt: { color: "#0F172A", fontWeight: "800" },
+  modalBtnCancelTxt: { color: "#0F172A", fontWeight: "800" },
 });
