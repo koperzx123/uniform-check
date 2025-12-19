@@ -383,11 +383,18 @@ export default function CheckScreen({ navigation }) {
       >
         <View style={styles.actionRow}>
           <TouchableOpacity
-            onPress={() => navigation.navigate("CameraCapture")}
-            style={styles.pickBtn}
-            disabled={busy}
-            activeOpacity={0.9}
-          >
+  onPress={() =>
+    navigation.navigate("CameraCapture", {
+      onCapture: (photo) => {
+        handlePickedAsset(photo);
+      },
+    })
+  }
+  style={styles.pickBtn}
+  disabled={busy}
+  activeOpacity={0.9}
+>
+
 
             {busy ? (
               <ActivityIndicator color="#0F172A" />
